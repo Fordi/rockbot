@@ -1,10 +1,9 @@
 #ifndef MEDIATOR_H
 #define MEDIATOR_H
 #include <QString>
-#include "file/format.h"
-#include "file/file_io.h"
-#include "file/fio_scenes.h"
-#include "file/fio_strings.h"
+#include "../file/format.h"
+#include "../file/v_1.h"
+
 
 struct st_player_graphics_data {
 	st_size frame_size;
@@ -25,9 +24,10 @@ struct st_player_graphics_data {
 };
 
 class Mediator {
-public:
-    static Mediator* get_instance();
-
+private:
+	int palleteX;
+	int palleteY;
+    std::string selectedTileset;
 
 public:
 	char gameName[50];
@@ -55,23 +55,28 @@ public:
     // sprites
     bool playing_sprites;
     int current_sprite_type;
-    int current_sprite_selection;
     int current_npc_n;
+	bool show_colorcycle1;
+	bool show_colorcycle2;
+	bool show_colorcycle3;
     int selectedAnimTileset;
     bool show_objects_flag;
     bool show_npcs_flag;
     bool show_teleporters_flag;
 
 
+	struct format_v1_0::list_map_npc *npc_map_list;
+	struct format_v1_0::npc_static_data_list *static_npc_list;
+
+	Mediator();
 	int getPalleteX();
 	int getPalleteY();
 	void setPalleteX(int value);
 	void setPalleteY(int value);
     std::string getPallete();
-    void setPallete(std::string filename);
 	void setPallete(char *value);
-    void load_game();
-    void save_game();
+	void initGameVar();
+	void loadGame(int n);
 
 	int get_stage_n(const int map_n);
 
@@ -90,6 +95,7 @@ public:
 	bool link_is_door;
 
 
+	void createGame();
 	void centNumberFormat(int n);
     //void getGameName(int n);
 	void resetMap(int);
@@ -103,46 +109,6 @@ public:
 	int current_player;
     int current_ai;
 
-    // old globals
-    CURRENT_FILE_FORMAT::file_game game_data;
-    CURRENT_FILE_FORMAT::file_stages stage_data;
-    CURRENT_FILE_FORMAT::file_map maps_data[FS_MAX_STAGES][FS_STAGE_MAX_MAPS]; // stage, map_n
-
-    std::vector<CURRENT_FILE_FORMAT::file_npc> enemy_list;
-    std::vector<CURRENT_FILE_FORMAT::file_object> object_list;
-    std::vector<CURRENT_FILE_FORMAT::file_artificial_inteligence> ai_list;
-    std::vector<CURRENT_FILE_FORMAT::file_projectile> projectile_list;
-    std::vector<CURRENT_FILE_FORMAT::file_scene_list> scene_list;
-    std::vector<CURRENT_FILE_FORMAT::file_anim_block> anim_block_list;
-    std::vector<CURRENT_FILE_FORMAT::file_player> player_list;
-
-
-
-    CURRENT_FILE_FORMAT::file_io fio;
-    CURRENT_FILE_FORMAT::fio_scenes fio_scenes;
-    bool GAME_FLAGS[FLAG_COUNT]; // compability for fio
-    std::string combobox_select_string;
-
-    // stage dialogs
-    std::map<int, std::vector<std::string> > stage_dialog_list;
-
-
-
-private:
-    Mediator();
-    Mediator(Mediator const&){};             // copy constructor is private
-    Mediator& operator=(Mediator const&){};  // assignment operator is private
-
-    void save_dialogs();
-
-
-private:
-    static Mediator* _instance;
-    int palleteX;
-    int palleteY;
-    std::string selectedTileset;
-    fio_common fio_cmm;
-    CURRENT_FILE_FORMAT::fio_strings fio_str;
 };
 
 

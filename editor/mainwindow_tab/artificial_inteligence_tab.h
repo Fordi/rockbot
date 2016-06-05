@@ -24,6 +24,8 @@ private slots:
 
 	void on_action1_currentIndexChanged(int index);
 
+	void on_ai_name_textChanged(const QString &arg1);
+
 	void on_chance1_valueChanged(int arg1);
 
 	void on_chance2_valueChanged(int arg1);

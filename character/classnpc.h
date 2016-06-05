@@ -71,10 +71,6 @@ public:
      *
      */
     void execute();
-
-
-    void boss_move();
-
     /**
      * @brief
      *
@@ -143,10 +139,6 @@ public:
 
     st_position get_start_position();
 
-    st_rectangle get_hitbox();
-
-    void show();
-
 
 
 
@@ -179,12 +171,6 @@ protected:
     bool first_run; /**< TODO */
     bool _is_player_friend;								// player spawned npcs must not hit him, but other npcs instead /**< TODO */
     bool _is_spawn;                                     // indicates that is a spawn, so won't drop items, etc
-
-
-    // boss member variables
-    short _initialized; /**< TODO */
-    bool _screen_blinked; /**< TODO */
-
 
 };
 

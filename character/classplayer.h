@@ -17,12 +17,7 @@ public:
      * @param std::string the name of the player
      * @param int number of the player. to be later used when we re-add support for the simultaneous two player mode
      */
-    classPlayer(int playerNumber);
-
-    void set_player_name(std::string set_name);
-
-    // called after game was picked and loaded, so we have player data
-    void initialize();
+    classPlayer(std::string set_name, int player_n);
 
     /**
      * @brief hardcoded method for setting each frame for a player (@TODO: replace by user driven data)
@@ -65,7 +60,7 @@ public:
      * @brief change the weapon player is using
      * @param weapon_n id of the weapon to be set
      */
-    void set_weapon(short weapon_n, bool show_tooltip_icon);
+    void set_weapon(short weapon_n);
 
     /**
      * @brief get the number of energy a given weapon still has (the number decreases as the weapon is used)
@@ -128,17 +123,6 @@ public:
 
     void damage(unsigned int damage_points, bool ignore_hit_timer);
 
-    /**
-     * @brief changes the colormap of stored frames surfaces for the current weapon color
-     * @param full_change indicates if must update all (true) or only current (false) frame
-     */
-    void change_player_color(bool full_change);
-
-    // to be used when game is paused
-    void save_input();
-    void restore_input();
-
-    Uint8 get_max_hp();
 
 
 private:
@@ -152,6 +136,11 @@ private:
      */
     void death();
 
+    /**
+     * @brief changes the colormap of stored frames surfaces for the current weapon color
+     * @param full_change indicates if must update all (true) or only current (false) frame
+     */
+    void change_player_color(bool full_change);
 
     /**
      * @brief load from game_data into class properties. @TODO: this should be replaced by using game_data directly if possible
@@ -216,16 +205,17 @@ private:
     bool can_air_dash();
 
 
-    float get_hit_push_back_n();
+    int get_hit_push_back_n();
 
-    int get_armor_arms_attack_id();
+    bool have_super_shot();
+
+    bool have_laser_shot();
 
     bool have_shoryuken();
 
     bool shoryuken();
 
     void consume_weapon(int value);
-
 
 
 private:

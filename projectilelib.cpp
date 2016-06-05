@@ -17,17 +17,14 @@ extern FREEZE_EFFECT_TYPES freeze_weapon_effect;
 extern int freeze_weapon_id;
 #define FREEZE_DURATION 3500
 
-#define LIGHTING_FRAMES_N 6
-
 
 // ********************************************************************************************** //
 //                                                                                                //
 // ********************************************************************************************** //
-projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, classMap *set_map, bool _owner_is_player) : _move_type(-1), is_reflected(false), status(0), _effect_timer(0), _effect_n(0), _points(1), _target_position(NULL), _weapon_id(-1), _is_temporary(true)
+projectile::projectile(int id, int set_direction, st_position set_position, classMap *set_map, bool _owner_is_player) : _move_type(-1), is_reflected(false), status(0), _effect_timer(0), _effect_n(0), _points(1), _target_position(NULL), _weapon_id(-1), _is_temporary(true)
 {
     set_default_values();
 	_id = id; // -1 is default projectile
-
     map = set_map;
     position = set_position;
     direction = set_direction;
@@ -38,8 +35,8 @@ projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, 
 	if (_id == -1) {
 		_size.width = 6;
 		_size.height = 6;
-    } else if (GameMediator::get_instance()->get_projectile(_id).speed > 0) {
-        _speed = GameMediator::get_instance()->get_projectile(_id).speed;
+    } else if (game_data.projectiles[_id].speed > 0) {
+        _speed = game_data.projectiles[_id].speed;
     }
 
     _sin_x = 0;
@@ -60,15 +57,12 @@ projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, 
         }
     }
 
-    //std::cout << ">>>>>>>>>>>> PROJECTILE::PROJECTILE::ID: " << (int)_id << ", trajectory: " << (int)_move_type << ", follow: " << TRAJECTORY_FOLLOW << std::endl;
 
     if (_move_type == TRAJECTORY_ARC) {
         position0.x = position.x;
         position0.y = position.y;
         _trajectory_parabola = trajectory_parabola(RES_W/3);
-    } else if (_move_type == TRAJECTORY_ARC_SMALL) {
-        position0.x = position.x;
-        position0.y = position.y;
+
     } else if (_move_type == TRAJECTORY_ARC_TO_TARGET) {
         position0.x = position.x;
     } else if (_move_type == TRAJECTORY_SIN) {
@@ -89,31 +83,19 @@ projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, 
         freeze_weapon_id = _id;
 		graphLib.blink_screen(235, 235, 235);
         draw_lib.set_flash_enabled(true);
-    } else if (_move_type == TRAJECTORY_PUSH_BACK) {
-        _effect_timer = timer.getTimer() + 2000;
-    } else if (_move_type == TRAJECTORY_LASER) {
-        status = TRAJECTORY_LINEAR; // we use status as the real trajectory in laser
-    } else if (_move_type == TRAJECTORY_CENTERED) {
-        _points = 3;
-    } else if (_move_type == TRAJECTORY_RING) {
-        status = 0;
-    } else if (_move_type == TRAJECTORY_LIGHTING) {
-        status = 0;
-        _effect_n = 0;
-        position0.x = position.x;
-        position0.y = position.y;
-        int first_bottom_lock = map->get_first_lock_on_bottom(position.x + get_size().width/2);
-        position.y = 0;
-        std::cout << "Y: " << position.y << std::endl;
-        _size.height = first_bottom_lock*TILESIZE + TILESIZE;
     } else {
 		position0.x = position.x;
 		position0.y = position.y;
         //std::cout << ">> position0.x: " << position0.x << ", position.x: " << position.x << std::endl;
 	}
 
+    if (_move_type == TRAJECTORY_LASER) {
+        status = TRAJECTORY_LINEAR; // we use status as the real trajectory in laser
+    }
 
-
+    if (_move_type == TRAJECTORY_CENTERED) {
+        _points = 3;
+    }
     //_target_distance = 0;
     _effect_timer = timer.getTimer() + 3600;
     animation_pos = 0;
@@ -125,6 +107,7 @@ projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, 
     _change_direction_counter = 0;
     _chain_width = 0;
 
+
     //std::cout << ">> Added projectyle, move_type: " << _move_type << ", TRAJECTORY_FOLLOW: " << TRAJECTORY_FOLLOW << ", w: " << _size.width << ", h: " << _size.height << std::endl;
 
     // for size, use getsize
@@ -132,10 +115,6 @@ projectile::projectile(Uint8 id, Uint8 set_direction, st_position set_position, 
     // for damage, use get_damage
     // for trajectory, get_trajectory
 
-    _speed_x = 8;
-    _accel_x = 0.95;
-
-    //std::cout << "_accel_x: " << _accel_x << std::endl;
 }
 
 void projectile::set_is_permanent()
@@ -168,17 +147,12 @@ projectile::~projectile()
 }
 
 
-st_size projectile::get_size() const
+st_size_int8 projectile::get_size() const
 {
     if (_id == -1) {
-        return st_size(6, 6);
-    } else if (_move_type == TRAJECTORY_RING) {
-        // depends on current frame
-        Uint8 w = _size.width;
-        Uint8 h = (_size.height/_max_frames) * animation_pos;
-        return st_size(w, h);
-    }
-    return GameMediator::get_instance()->get_projectile(_id).size;
+        return st_size_int8(6, 6);
+	}
+    return game_data.projectiles[_id].size;
 }
 
 void projectile::move_ahead(st_size &moved)
@@ -279,10 +253,10 @@ Uint8 projectile::get_damage() const
     if ((get_trajectory() == TRAJECTORY_BOMB || get_trajectory() == TRAJECTORY_FALL_BOMB) && _effect_n == 0) {
 		return 0;
 	}
-    if (GameMediator::get_instance()->get_projectile(_id).damage <= 0) {
+	if (game_data.projectiles[_id].damage <= 0) {
 		return PROJECTILE_DEFAULT_DAMAGE;
 	}
-    return GameMediator::get_instance()->get_projectile(_id).damage;
+    return game_data.projectiles[_id].damage;
 }
 
 Uint8 projectile::get_trajectory() const
@@ -290,7 +264,7 @@ Uint8 projectile::get_trajectory() const
     if (_id == -1) {
         return TRAJECTORY_LINEAR;
     }
-    return GameMediator::get_instance()->get_projectile(_id).trajectory;
+	return game_data.projectiles[_id].trajectory;
 }
 
 void projectile::set_trajectory(short new_trajectory)
@@ -339,12 +313,12 @@ void projectile::set_target_position(st_float_position *pos)
 graphicsLib_gSurface *projectile::get_surface()
 {
 	if (_id == -1) {
-        if (graphLib.projectile_surface[0].get_surface() == NULL) {
+        if (&graphLib.projectile_surface[0].gSurface == NULL) {
             graphLib.show_debug_msg("projectile surface error #1");
         }
 		return &graphLib.projectile_surface[0];
 	} else {
-        if (graphLib.projectile_surface[_id].get_surface() == NULL) {
+        if (&graphLib.projectile_surface[_id].gSurface == NULL) {
             graphLib.show_debug_msg("projectile surface error #2");
         }
         return &graphLib.projectile_surface[_id];
@@ -363,26 +337,12 @@ st_rectangle projectile::get_area()
 
 short projectile::get_max_shots()
 {
-    return GameMediator::get_instance()->get_projectile(_id).max_shots;
+    return game_data.projectiles[_id].max_shots;
 }
 
 short projectile::get_id()
 {
     return _id;
-}
-
-void projectile::play_sfx(bool called_from_npc)
-{
-    std::string projectile_sfx(GameMediator::get_instance()->get_projectile(_id).sfx_filename);
-
-
-    if (projectile_sfx.length() > 0) {
-        //Mix_Chunk* sfx = GameMediator::get_instance()->get_sfx(projectile_sfx);
-        //soundManager.play_sfx_from_chunk(sfx, 1);
-        soundManager.play_sfx_from_file(projectile_sfx, 1);
-    } else if (called_from_npc == false) { // game enemies should not play default fire sound
-        soundManager.play_sfx(SFX_PLAYER_SHOT);
-    }
 }
 
 st_size projectile::move() {
@@ -399,7 +359,7 @@ st_size projectile::move() {
 
 
 
-    if (_move_type == TRAJECTORY_LINEAR || _move_type == TRAJECTORY_DIAGONAL_UP || _move_type == TRAJECTORY_DIAGONAL_DOWN || _move_type == TRAJECTORY_RING) {
+	if (_move_type == TRAJECTORY_LINEAR || _move_type == TRAJECTORY_DIAGONAL_UP || _move_type == TRAJECTORY_DIAGONAL_DOWN) {
         move_ahead(moved);
         if (_move_type == TRAJECTORY_DIAGONAL_UP) {
             position.y -= get_speed();
@@ -420,29 +380,6 @@ st_size projectile::move() {
         }
         move_ahead(moved);
         position.y = position0.y - _trajectory_parabola.get_y_point(abs(position.x - position0.x));
-
-    } else if (_move_type == TRAJECTORY_ARC_SMALL) {
-        if (position.y < _size.height || position.y > RES_H) {
-            is_finished = true;
-            return st_size(0, 0);
-        }
-
-        if (_speed_x > 0) {
-            if (direction == ANIM_DIRECTION_LEFT || direction == ANIM_DIRECTION_DOWN_LEFT || direction == ANIM_DIRECTION_UP_LEFT) {
-                position.x -= _speed_x;
-                moved.width -= _speed_x;
-            } else {
-                position.x += _speed_x;
-                moved.width += _speed_x;
-            }
-            _speed_x -= _accel_x;
-            //std::cout << "ARC::SMALL::speed_x: " << _speed_x << std::endl;
-            if (_speed_x < 0) {
-                _speed_x = 0;
-            }
-        }
-        position.y += get_speed();
-
     } else if (_move_type == TRAJECTORY_ARC_TO_TARGET) {
         move_ahead(moved);
         position.y = position0.y - _trajectory_parabola.get_y_point(abs(position.x - position0.x));
@@ -529,8 +466,8 @@ st_size projectile::move() {
 		if (_owner_position == NULL) {
             std::cout << "ERROR: owner positoon NOT set in centered projectile" << std::endl;
 		} else {
-            position.x = _owner_position->x - 15;
-            position.y = _owner_position->y - 10;
+			position.x = _owner_position->x - 15;
+			position.y = _owner_position->y - 7;
 			if (_owner_direction != NULL) {
 				direction = *_owner_direction;
 			}
@@ -645,29 +582,11 @@ st_size projectile::move() {
         }
 
 
-    } else if (_move_type == TRAJECTORY_PUSH_BACK) {
-        // execution will be handled by move_projectiles() in player/npc classes, only control duration
-        if (timer.getTimer() > _effect_timer) {
-            is_finished = true;
-        }
 
-    } else if (_move_type == TRAJECTORY_LIGHTING) {
-        if (_effect_n > LIGHTING_FRAMES_N) {
-            play_sfx(false);
-            if (direction == ANIM_DIRECTION_LEFT) {
-                position.x -= RES_W/3;
-            } else {
-                position.x += RES_W/3;
-            }
-            _effect_n = 0;
-            status = 0;
-            if (status > 3) {
-                finish();
-            }
-        }
+
 
     } else {
-        std::cout << "projectile::move - UNKNOWN TRAJECTORY #" << (int)_move_type << std::endl;
+        std::cout << "projectile::move - UNKNOWN TRAJECTORY #" << _move_type << std::endl;
 	}
 
 	realPosition.x = position.x - map->getMapScrolling().x;
@@ -687,18 +606,14 @@ void projectile::draw() {
 		return;
 	}
 
-    if (_move_type == TRAJECTORY_QUAKE || _move_type == TRAJECTORY_FREEZE || _move_type == TRAJECTORY_PUSH_BACK) { /// QTODO: freeze could use some "sparkling" effect
+	if (_move_type == TRAJECTORY_QUAKE || _move_type == TRAJECTORY_FREEZE) { /// QTODO: freeze could use some "sparkling" effect
 		//std::cout << "projectile::draw - invisible type" << std::endl;
 		return;
 	}
 
 	if (animation_pos >= _max_frames) {
 		//std::cout << "projectile::draw - RESET animation_pos" << std::endl;
-        if (_move_type == TRAJECTORY_RING) { // ring will be kept at last two frames
-            animation_pos = _max_frames-2;
-        } else {
-            animation_pos = 0;
-        }
+		animation_pos = 0;
 	}
 
     int anim_pos = animation_pos*_size.width;
@@ -721,19 +636,8 @@ void projectile::draw() {
         }
         //std::cout << "CHAIN - x: " << anim_pos << ", show_width: " << show_width << std::endl;
 
-    // lighting gets image from bottom to height
-    } else if (_move_type == TRAJECTORY_LIGHTING) {
-        int y_pos = get_surface()->height -_size.height;
-        //std::cout << "LIGHTING::SHOW::y: " << y_pos << std::endl;
-        graphLib.showSurfaceRegionAt(get_surface(), st_rectangle(anim_pos, y_pos, show_width, _size.height), realPosition);
-
-        if (animation_pos == _max_frames-1) {
-            _effect_n++;
-        }
-
 
     } else {
-        //printf(">> PROJECTILE::DRAW[%d] - show_width[%d], _size.height[%d] anim_pos[%d], img.w[%d], img.h[%d] <<\n", _id, show_width, _size.height, anim_pos, get_surface()->width, get_surface()->height);
         if (direction == ANIM_DIRECTION_LEFT && get_surface()->height >= _size.height*2) {
             graphLib.showSurfaceRegionAt(get_surface(), st_rectangle(anim_pos, _size.height, show_width, _size.height), realPosition);
         } else if (direction == ANIM_DIRECTION_UP && get_surface()->height >= _size.height*3) {
@@ -767,20 +671,14 @@ void projectile::draw() {
             }
         }
 		//std::cout << "projectile::draw - inc anim_pos to " << animation_pos << std::endl;
-        if (_move_type == TRAJECTORY_CENTERED) {
-            animation_timer = timer.getTimer() + PROJECTILE_DEFAULT_ANIMATION_TIME/2;
-        } else if (_move_type == TRAJECTORY_LIGHTING) {
-            animation_timer = timer.getTimer() + PROJECTILE_DEFAULT_ANIMATION_TIME/3;
-        } else {
-            animation_timer = timer.getTimer() + PROJECTILE_DEFAULT_ANIMATION_TIME;
-        }
+		animation_timer = timer.getTimer() + PROJECTILE_DEFAULT_ANIMATION_TIME;
 	}
 }
 
 // TODO: width/height must come from editor instead of using graphLib.projectile_surface
 bool projectile::check_colision(st_rectangle enemy_pos, st_position pos_inc) const
 {
-    if (_move_type == TRAJECTORY_QUAKE || _move_type == TRAJECTORY_FREEZE || _move_type == TRAJECTORY_PUSH_BACK) {
+    if (_move_type == TRAJECTORY_QUAKE || _move_type == TRAJECTORY_FREEZE) {
         return false;
     }
 
@@ -800,26 +698,8 @@ bool projectile::check_colision(st_rectangle enemy_pos, st_position pos_inc) con
         }
     }
 
-    st_rectangle p_rect(enemy_pos.x, enemy_pos.y, enemy_pos.w, enemy_pos.h);
-
-
-    if (_move_type == TRAJECTORY_RING) {
-        int ring_h = 4;
-        st_rectangle projectile_rect1(px, py, pw, ring_h);
-        bool res1 = rect_colision_obj.rect_overlap(projectile_rect1, p_rect);
-        st_rectangle projectile_rect2(px, py+ph-ring_h, pw, ring_h);
-        bool res2 = rect_colision_obj.rect_overlap(projectile_rect2, p_rect);
-
-        std::cout << "COLLISION-RING - res1: " << res1 << ", res2: " << res2 << std::endl;
-
-        if (res1 || res2) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     st_rectangle projectile_rect(px, py, pw, ph);
+    st_rectangle p_rect(enemy_pos.x, enemy_pos.y, enemy_pos.w, enemy_pos.h);
     bool res = rect_colision_obj.rect_overlap(projectile_rect, p_rect);
 
     return res;
@@ -848,7 +728,7 @@ bool projectile::check_map_colision(st_position pos_inc) const
 }
 
 
-Uint8 projectile::get_direction() const
+int projectile::get_direction() const
 {
 	return direction;
 }
@@ -856,7 +736,7 @@ Uint8 projectile::get_direction() const
 void projectile::reflect()
 {
     // if it is a bomb, don't reflect at all
-    if (get_trajectory() == TRAJECTORY_BOMB || get_trajectory() == TRAJECTORY_FALL_BOMB || get_trajectory() == TRAJECTORY_LIGHTING) {
+    if (get_trajectory() == TRAJECTORY_BOMB || get_trajectory() == TRAJECTORY_FALL_BOMB) {
         return;
     }
 	if (direction == ANIM_DIRECTION_LEFT) {
@@ -873,12 +753,12 @@ void projectile::reflect()
 	soundManager.play_sfx(SFX_SHOT_REFLECTED);
 }
 
-Uint8 projectile::get_move_type() const
+short projectile::get_move_type() const
 {
     if (_id == -1) {
         return TRAJECTORY_LINEAR;
     }
-    return GameMediator::get_instance()->get_projectile(_id).trajectory;
+    return game_data.projectiles[_id].trajectory;
 }
 
 void projectile::set_y(int sety)
@@ -935,7 +815,7 @@ void projectile::set_owner_position(st_float_position *owner_position)
 	_owner_position = owner_position;
 }
 
-void projectile::set_owner_direction(Uint8 *owner_direction)
+void projectile::set_owner_direction(int *owner_direction)
 {
 	_owner_direction = owner_direction;
 }

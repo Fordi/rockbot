@@ -10,9 +10,11 @@ extern std::vector<std::string> AI_ACTION_AIR_WALK_OPTIONS;
 extern std::vector<std::string> AI_ACTION_TELEPORT_OPTIONS;
 extern std::vector<std::string> AI_ACTION_DASH_OPTIONS;
 extern std::vector<std::string> AI_ACTION_GRAB_WALL_OPTIONS;
-extern std::vector<std::string> ANIMATION_TYPE_LIST;
 
+extern CURRENT_FILE_FORMAT::file_stages stage_data;
 #include "mediator.h"
+extern Mediator *dataExchanger;
+extern char EDITOR_FILEPATH[512];
 
 common::common()
 {
@@ -25,14 +27,16 @@ common::~common()
 
 void common::fill_files_combo(std::string directory, QComboBox* combo, bool show_none)
 {
-    // ignore as game was not initialized yet. the form will need to call reload to work in this case
-    if (FILEPATH.length() == 0) {
-        return;
-    }
+
+    std::cout << "fill_files_combo::DEBUG #A" << std::endl;
 
     combo->clear(); // delete all previous entries
 
+    std::cout << "fill_files_combo::DEBUG #B - count: " << combo->count() << std::endl;
+
     combo->addItem(QString("")); // for "empty"
+    std::cout << "fill_files_combo::DEBUG #C" << std::endl;
+
     std::string str_filepath(FILEPATH+directory);
     QString filepath(str_filepath.c_str());
     QDir dir = QDir(filepath);
@@ -42,20 +46,21 @@ void common::fill_files_combo(std::string directory, QComboBox* combo, bool show
         exit(-1);
     }
 
+    std::cout << "fill_files_combo::DEBUG #D" << std::endl;
+
     dir.setFilter(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot);
-    dir.setSorting(QDir::Name);
+    dir.setSorting(QDir::Size | QDir::Reversed);
 	if (show_none == true) {
 		combo->addItem(QString("None"));
 	}
 
+    std::cout << "fill_files_combo::DEBUG #E" << std::endl;
+
     foreach (const QFileInfo &fileInfo, dir.entryInfoList()) {
         if (fileInfo.fileName().length() > 30) {
-            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << FS_CHAR_NAME_SIZE << ")" << std::endl;
+            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << CHAR_FILENAME_SIZE << ")" << std::endl;
         } else {
-            QString filename(fileInfo.fileName());
-            if (filename.length() > 0) {
-                combo->addItem(filename);
-            }
+            combo->addItem(QString(fileInfo.fileName()));
         }
     }
     combo->repaint();
@@ -71,7 +76,7 @@ void common::fill_graphicfiles_listwidget(std::string directory, QListWidget* li
     QString filepath(str_filepath.c_str());
     QDir dir = QDir(filepath);
     if (!dir.exists()) {
-        std::cout << ">> MainWindow::fill_graphicfiles_listwidget ERROR: Directory '" << str_filepath << " does not exist. <<" << std::endl;
+		//std::cout << ">> MainWindow::fill_graphicfiles_listwidget ERROR: Directory '" << str_filepath << " does not exist. <<" << std::endl;
         exit(-1);
     }
     dir.setFilter(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot);
@@ -81,7 +86,7 @@ void common::fill_graphicfiles_listwidget(std::string directory, QListWidget* li
     for (int i = 0; i < list.size(); ++i) {
         QFileInfo fileInfo = list.at(i);
         if (fileInfo.fileName().length() > 30) {
-            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << FS_CHAR_NAME_SIZE << ")" << std::endl;
+            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << CHAR_FILENAME_SIZE << ")" << std::endl;
         } else {
             item = new QListWidgetItem;
             item->setText(fileInfo.fileName());
@@ -107,7 +112,7 @@ void common::fill_graphicfiles_combobox(std::string directory, QComboBox *comboW
     QString filepath(str_filepath.c_str());
     QDir dir = QDir(filepath);
     if (!dir.exists()) {
-        std::cout << ">> MainWindow::fill_graphicfiles_combobox ERROR: Directory '" << str_filepath << " does not exist. <<" << std::endl;
+        //std::cout << ">> MainWindow::fill_graphicfiles_listwidget ERROR: Directory '" << str_filepath << " does not exist. <<" << std::endl;
         exit(-1);
     }
     dir.setFilter(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot);
@@ -117,7 +122,7 @@ void common::fill_graphicfiles_combobox(std::string directory, QComboBox *comboW
     for (int i = 0; i < list.size(); ++i) {
         QFileInfo fileInfo = list.at(i);
         if (fileInfo.fileName().length() > 30) {
-            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << FS_CHAR_NAME_SIZE << ")" << std::endl;
+            std::cout << "ERROR: file '" << fileInfo.fileName().toStdString() << "' surpasses the maximum number of file-characters (" << CHAR_FILENAME_SIZE << ")" << std::endl;
         } else {
             std::string filename = FILEPATH + directory + "/" + fileInfo.fileName().toStdString();
             QIcon icon(filename.c_str());
@@ -132,12 +137,12 @@ void common::fill_npc_combo(QComboBox* combo)
 {
     combo->clear(); // delete all previous entries
 
-    for (int i=0; i<Mediator::get_instance()->enemy_list.size(); i++) {
+    for (int i=0; i<FS_GAME_MAX_NPCS; i++) {
         QString temp_str = QString("[");
         if (i < 10) {
             temp_str += "0";
         }
-        temp_str += QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->enemy_list.at(i).name);
+        temp_str += QString::number(i) + QString("] - ") + QString(game_data.game_npcs[i].name);
         combo->addItem(temp_str);
     }
 }
@@ -146,8 +151,8 @@ void common::fill_object_combo(QComboBox* combo)
 {
     combo->clear(); // delete all previous entries
 
-    for (int i=0; i<Mediator::get_instance()->object_list.size(); i++) {
-        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->object_list.at(i).name);
+    for (int i=0; i<FS_GAME_MAX_NPCS; i++) {
+        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(game_data.objects[i].name);
         combo->addItem(temp_str);
 	}
 }
@@ -160,7 +165,7 @@ void common::fill_weapons_combo(QComboBox *combo)
     QString temp_str = QString("[0] - Normal Weapon");
     combo->addItem(temp_str);
     for (int i=1; i<9; i++) {
-        temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->stage_data.stages[i].name + QString(" (") + QString(Mediator::get_instance()->stage_data.stages[i].boss.name) + QString (")"));
+        temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(stage_data.stages[i].name + QString(" (") + QString(stage_data.stages[i].boss.name) + QString (")"));
         combo->addItem(temp_str);
     }
 }
@@ -169,7 +174,7 @@ void common::fill_weapons_names_combo(QComboBox *combo)
 {
     combo->clear(); // delete all previous entries
     for (int i=0; i<FS_MAX_WEAPONS; i++) {
-        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->game_data.weapons[i].name);
+        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(game_data.weapons[i].name);
         combo->addItem(temp_str);
     }
 }
@@ -184,15 +189,13 @@ void common::fill_weapons_combo_plus(QComboBox *combo)
     combo->addItem(temp_str);
 }
 
-void common::fill_projectiles_combo(QComboBox *combo, bool add_empty_slot)
+void common::fill_projectiles_combo(QComboBox *combo)
 {
     combo->clear(); // delete all previous entries
 
-    if (add_empty_slot) {
-        combo->addItem(QString(""));
-    }
-    for (int i=0; i<Mediator::get_instance()->projectile_list.size(); i++) {
-        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->projectile_list.at(i).name);
+    combo->addItem(QString("[") + QString::number(-1) + QString("] - ") + QString("DEFAULT"));
+    for (int i=0; i<FS_MAX_PROJECTILES; i++) {
+		QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(game_data.projectiles[i].name);
         combo->addItem(temp_str);
     }
 }
@@ -227,10 +230,7 @@ void common::fill_ai_actions_combo(QComboBox *combo, bool include_null)
 
 void common::fill_ai_options_combo(int action, QComboBox *combo)
 {
-
     combo->clear(); // delete all previous entries
-
-    //action--;
 
     std::vector<std::string> list;
 	if (action == AI_ACTION_WALK) {
@@ -247,26 +247,13 @@ void common::fill_ai_options_combo(int action, QComboBox *combo)
 		list = AI_ACTION_DASH_OPTIONS;
 	} else if (action == AI_ACTION_GRAB_WALL) {
 		list = AI_ACTION_GRAB_WALL_OPTIONS;
-    } else if (action == AI_ACTION_SPAWN_NPC || action == AI_ACTION_REPLACE_NPC) {
+    } else if (action == AI_ACTION_SPAWN_NPC) {
         list = common::get_npc_names_list();
-    } else if (action == AI_ACTION_SHOT_PROJECTILE_AHEAD || action == AI_ACTION_SHOT_PROJECTILE_PLAYER_DIRECTION || action == AI_ACTION_SHOT_PROJECTILE_INVERT_DIRECTION || action == AI_ACTION_JUMP_ATTACK_UP || action == AI_ACTION_JUMP_ATTACK_AHEAD_ONCE) {
-        //list = AI_ACTION_SHOT_OPTIONS;
-        list = common::get_weapon_names_list();
-    } else if (action == AI_ACTION_CHANGE_MOVE_TYPE || action == AI_ACTION_CHANGE_MOVE_TYPE_REVERSE) {
-        list = ANIMATION_TYPE_LIST;
-    } else if (action == AI_ACTION_CIRCLE_PLAYER) {
-        std::vector<std::string> dist_list;
-        dist_list.push_back("1");
-        dist_list.push_back("2");
-        dist_list.push_back("3");
-        dist_list.push_back("4");
-        list = dist_list;
-    } else {
-        return;
+    } else if (action == AI_ACTION_SHOT_PROJECTILE_1 || action == AI_ACTION_SHOT_PROJECTILE_2) {
+        list = AI_ACTION_SHOT_OPTIONS;
     }
 
 	// add options
-    combo->clear(); // delete all previous entries
 	for (int i=0; i<list.size(); i++) {
 		std::string temp = list[i];
 		QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(temp.c_str());
@@ -277,8 +264,8 @@ void common::fill_ai_options_combo(int action, QComboBox *combo)
 void common::fill_ai_list(QComboBox *combo)
 {
     combo->clear(); // delete all previous entries
-    for (int i=0; i<Mediator::get_instance()->ai_list.size(); i++) {
-        QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->ai_list.at(i).name);
+    for (int i=0; i<MAX_AI_TYPES; i++) {
+		QString temp_str = QString("[") + QString::number(i) + QString("] - ") + QString(game_data.ai_types[i].name);
 		combo->addItem(temp_str);
     }
 }
@@ -287,7 +274,10 @@ void common::fill_stages_combo(QComboBox *combo)
 {
     combo->clear(); // delete all previous entries
     for (int i=0; i<FS_MAX_STAGES; i++) {
-        combo->addItem(QString("[") + QString::number(i) + QString("]: ") + QString(Mediator::get_instance()->stage_data.stages[i].name));
+        if (strlen(stage_data.stages[i].name) > 0) {
+            //std::cout << "STAGE: '" << stage_data.stages[i].name << "'" << std::endl;
+            combo->addItem(QString(stage_data.stages[i].name));
+        }
     }
 }
 
@@ -295,7 +285,7 @@ void common::fill_players_combo(QComboBox* combo)
 {
     combo->clear(); // delete all previous entries
     for (int i=0; i<FS_MAX_PLAYERS; i++) {
-        combo->addItem(QString::number(i+1)+QString(" [")+QString(Mediator::get_instance()->player_list[i].name)+QString("]"));
+        combo->addItem(QString::number(i+1)+QString(" [")+QString(game_data.players[i].name)+QString("]"));
     }
 }
 
@@ -305,8 +295,8 @@ void common::fill_map_list_combo(QComboBox *combo)
     combo->clear(); // delete all previous entries
     for (int i=0; i<3; i++) {
         char buffer[512];
-        Mediator::get_instance()->centNumberFormat(i);
-        sprintf(buffer, "%s", Mediator::get_instance()->centNumber);
+        dataExchanger->centNumberFormat(i);
+        sprintf(buffer, "%s", dataExchanger->centNumber);
         combo->addItem(buffer);
     }
 }
@@ -318,17 +308,17 @@ void common::fill_npc_listwidget(QListWidget *listWidget)
 
     listWidget->clear();
 
-    for (int i=0; i<Mediator::get_instance()->enemy_list.size(); i++) {
+    for (int i=0; i<FS_GAME_MAX_NPCS; i++) {
         item = new QListWidgetItem;
         QString temp_str = QString("[");
         if (i < 10) {
             temp_str += "0";
         }
-        temp_str += QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->enemy_list.at(i).name);
+        temp_str += QString::number(i) + QString("] - ") + QString(game_data.game_npcs[i].name);
         item->setText(temp_str);
-        std::string filename = FILEPATH + "/images/sprites/enemies/" + Mediator::get_instance()->enemy_list.at(i).graphic_filename;
+        std::string filename = FILEPATH + "/data/images/sprites/enemies/" + game_data.game_npcs[i].graphic_filename;
         QPixmap image(filename.c_str());
-        image = image.copy(0, 0, Mediator::get_instance()->enemy_list.at(i).frame_size.width, Mediator::get_instance()->enemy_list.at(i).frame_size.height);
+        image = image.copy(0, 0, game_data.game_npcs[i].frame_size.width, game_data.game_npcs[i].frame_size.height);
         if (image.isNull() == false && image.width() > 0) {
             image = image.scaled(32, 32);
         }
@@ -345,18 +335,17 @@ void common::fill_object_listWidget(QListWidget *listWidget)
 
     listWidget->clear();
 
-    for (int i=0; i<Mediator::get_instance()->object_list.size(); i++) {
+    for (int i=0; i<FS_GAME_MAX_NPCS; i++) {
         item = new QListWidgetItem;
         QString temp_str = QString("[");
         if (i < 10) {
             temp_str += "0";
         }
-
-        temp_str += QString::number(i) + QString("] - ") + QString(Mediator::get_instance()->object_list.at(i).name);
+        temp_str += QString::number(i) + QString("] - ") + QString(game_data.objects[i].name);
         item->setText(temp_str);
-        std::string filename = FILEPATH + "/images/sprites/objects/" + Mediator::get_instance()->object_list.at(i).graphic_filename;
+        std::string filename = FILEPATH + "/data/images/sprites/objects/" + game_data.objects[i].graphic_filename;
         QPixmap image(filename.c_str());
-        image = image.copy(0, 0, Mediator::get_instance()->object_list.at(i).size.width, Mediator::get_instance()->object_list.at(i).size.height);
+        image = image.copy(0, 0, game_data.objects[i].size.width, game_data.objects[i].size.height);
         if (image.isNull() == false && image.width() > 0) {
             image = image.scaled(32, 32);
         }
@@ -368,40 +357,13 @@ void common::fill_object_listWidget(QListWidget *listWidget)
     listWidget->update();
 }
 
-void common::fill_scenes_combo(QComboBox *combo)
-{
-    for (int i=0; i<Mediator::get_instance()->scene_list.size(); i++) {
-        combo->addItem(Mediator::get_instance()->scene_list.at(i).name);
-    }
-}
-
 std::vector<std::string> common::get_npc_names_list()
 {
     std::vector<std::string> res;
-    for (int i=0; i<Mediator::get_instance()->enemy_list.size(); i++) {
-        res.push_back(std::string(Mediator::get_instance()->enemy_list.at(i).name));
+    for (int i=0; i<FS_GAME_MAX_NPCS; i++) {
+        res.push_back(std::string(game_data.game_npcs[i].name));
     }
     return res;
 }
-
-std::vector<std::string> common::get_weapon_names_list()
-{
-    std::vector<std::string> res;
-    for (int i=0; i<Mediator::get_instance()->projectile_list.size(); i++) {
-        res.push_back(std::string(Mediator::get_instance()->projectile_list.at(i).name));
-    }
-    return res;
-}
-
-void common::fill_anim_block_combo(QComboBox *combo)
-{
-    combo->clear();
-    for (int i=0; i<Mediator::get_instance()->anim_block_list.size(); i++) {
-        QString name = QString::number(i);
-        combo->addItem(name);
-    }
-}
-
-
 
 

@@ -78,6 +78,8 @@ public:
 
     void loadMap();
 
+    void drawMap();
+
     void showMap();
 
     void showAbove(int scroll_y=0, int temp_scroll_x = -99999);
@@ -90,23 +92,19 @@ public:
 
     bool get_map_point_wall_lock(int x) const;
 
-    void changeScrolling(st_float_position pos, bool check_lock=true);
+    void changeScrolling(st_position pos, bool check_lock=true);
 
-    st_float_position getMapScrolling() const;
+    st_position getMapScrolling() const;
 
-    st_float_position* get_map_scrolling_ref();
-
-    st_float_position get_last_scrolled() const;
+    st_position get_last_scrolled() const;
 
     void reset_scrolled();
 
     void load_map_objects();
 
-    int colision_rect_player_obj(st_rectangle player_rect, object* temp_obj, const short int x_inc, const short int y_inc, const short obj_xinc, const short obj_yinc);
+    int colision_rect_player_obj(character* playerObj, object* temp_obj, const short int x_inc, const short int y_inc, short int reduce_x, short int reduce_y, const short obj_xinc, const short obj_yinc);
 
-    bool is_obj_ignored_by_enemies(Uint8 obj_type);                 // returns true if object if of type that can be got like energy
-
-    void colision_char_object(character*, const float, const short int);
+    void colision_player_object(character*, const short int, const short int, short int, short int);
 
     object_colision get_obj_colision();
 
@@ -120,13 +118,15 @@ public:
 
     void reset_beam_objects();
 
-    graphicsLib_gSurface get_map_area_surface();
+    graphicsLib_gSurface* get_map_surface();
 
-    void set_scrolling(st_float_position pos);
+    void set_scrolling(st_position pos);
 
     void reset_scrolling();
 
     void move_map(const short int move_x, const short int move_y);
+
+    void clean_map();
 
     void reset_map();
 
@@ -134,11 +134,9 @@ public:
 
     void add_animation(ANIMATION_TYPES pos_type, graphicsLib_gSurface* surface, const st_float_position &pos, st_position adjust_pos, unsigned int frame_time, unsigned int repeat_times, int direction, st_size framesize);
 
-    void add_animation(animation anim);
-
     void clear_animations(); // remove all animations from map
 
-    void set_player(classPlayer* player_ref);
+    void set_player_list(std::vector<classPlayer*> player_list);
 
     classnpc *spawn_map_npc(short int npc_id, st_position npc_pos, short direction, bool player_friend, bool progressive_span);
 
@@ -150,21 +148,19 @@ public:
 
     std::vector<object*> check_collision_with_objects(st_rectangle collision_area);
 
-    void show_objects(int adjust_y=0, int adjust_x=0);
+    void show_objects(int adjust_y=0);
 
     bool boss_hit_ground();
 
     void reset_map_npcs();
 
-    void draw_dynamic_backgrounds_into_surface(graphicsLib_gSurface &surface);
+    void draw_dynamic_backgrounds_into_surface(graphicsLib_gSurface &surface, int x_adjust, int y_adjust);
 
     void add_object(object obj);
 
     int get_first_lock_on_left(int x_pos) const;
 
     int get_first_lock_on_right(int x_pos) const;
-
-    int get_first_lock_on_bottom(int x_pos);
 
     void drop_item(st_position pos);
 
@@ -192,20 +188,10 @@ public:
 
     void activate_final_boss_teleporter();
 
-    Uint8 get_map_gfx();
-
-    st_float_position get_bg1_scroll();
-    st_float_position get_bg2_scroll();
-    void set_bg1_scroll(st_float_position pos);
-    void set_bg2_scroll(st_float_position pos);
-
-
 private:
     void load_map_npcs();
 
     void draw_dynamic_backgrounds();
-
-    void adjust_dynamic_background_position();
 
     bool value_in_range(int value, int min, int max) const;
 
@@ -214,8 +200,8 @@ private:
     void create_dynamic_background_surface(graphicsLib_gSurface& dest_surface, graphicsLib_gSurface& image_surface) const;
 
 public:
-    std::vector<classnpc> _npc_list; // vector npcs
-    classPlayer* _player_ref; // vector players
+    std::vector<classnpc*> _npc_list; // vector npcs
+    std::vector<classPlayer*> _player_list; // vector players
     std::vector<animation> animation_list;
 	// vector teleporters
 	// vector objects
@@ -223,11 +209,13 @@ public:
 
 private:
     int stage_number;
-    struct st_float_position scroll;
-    st_float_position scrolled;						// stores the value the map scrolled in this cycle. used for character movement control (it should move taking the scroll in account)
+    graphicsLib_gSurface mapSurface;
+    struct st_position scroll;
+    st_position scrolled;						// stores the value the map scrolled in this cycle. used for character movement control (it should move taking the scroll in account)
+    std::vector<object> object_list;
     bool wall_scroll_lock[MAP_W];
-    st_float_position bg1_scroll;
-    st_float_position bg2_scroll;
+    float bg1_scroll;
+    float bg2_scroll;
     graphicsLib_gSurface bg1_surface;
     graphicsLib_gSurface bg2_surface;
     short _platform_leave_counter;
@@ -235,7 +223,6 @@ private:
     st_rectangle _3rd_level_ignore_area;
     object_colision _obj_colision;
     std::vector<st_level3_tile> _level3_tiles;
-    std::vector<object> object_list;
     bool _break_npc_loop;                       // used to prevent looping through the npc list after adding a new one (needed because using vector instead of list, because of old-Dingux crashes)
 };
 

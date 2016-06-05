@@ -5,6 +5,9 @@
 
 #include "../file/format.h"
 
+extern std::string FILEPATH;
+extern CURRENT_FILE_FORMAT::file_game game_data;
+
 namespace Ui {
 class weapon_edit;
 }
@@ -29,8 +32,6 @@ private slots:
 	void on_weapon_projectile_type_currentIndexChanged(int index);
 
 	void on_weapon_damage_valueChanged(int arg1);
-
-    void on_weapon_charged_projectile_type_currentIndexChanged(int index);
 
 private:
 	Ui::weapon_edit *ui;

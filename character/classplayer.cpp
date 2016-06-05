@@ -13,96 +13,71 @@ extern soundLib soundManager;
 #include "game.h"
 extern game gameControl;
 
-#include "game_mediator.h"
-
-extern std::string FILEPATH;
-
 extern CURRENT_FILE_FORMAT::file_game game_data;
 
 extern CURRENT_FILE_FORMAT::st_save game_save;
 
 extern FREEZE_EFFECT_TYPES freeze_weapon_effect;
 
-#define PLAYER_MOVE_SPEED 1.2 // higher is faster
+#define PLAYER_MOVE_SPEED_INT_PART 2 // higher is faster
+#define PLAYER_MOVE_SPEED_FLOAT_PART 4 // lower is faster
 
-#include "file/file_io.h"
 
 #include "classmap.h"
-
-extern CURRENT_FILE_FORMAT::file_io fio;
 
 // ********************************************************************************************** //
 //                                                                                                //
 // ********************************************************************************************** //
-classPlayer::classPlayer(int playerNumber) : teleporter_n(-1), selected_weapon(WEAPON_DEFAULT), l_key_released(true), r_key_released(true)
+classPlayer::classPlayer(std::string set_name, int playerNumber) : teleporter_n(-1), selected_weapon(WEAPON_DEFAULT), l_key_released(true), r_key_released(true)
 {
-
-    std::cout << "### PLAYER::CREATE::number: " << _number << std::endl;
-
     _number = playerNumber;
     if (_number == 3 || _number == 0) {
-        //_obj_jump.set_jump_acceleration(0.95);
+        _obj_jump.set_jump_acceleration(0.95);
         _obj_jump.set_jump_limit(50);
     }
+	max_projectiles = game_data.players[_number].max_shots;
+    std::cout << "###### classPlayer::classPlayer[" << _number << "] - max_projectiles: " << max_projectiles << std::endl;
     position.y = -TILESIZE;
 	position.x = 80;
     hit_duration = 2000;
+	//hitPoints.total = game_data.players[_number].HP;
 	hitPoints.total = PLAYER_INITIAL_HP;
 	hitPoints.current = hitPoints.total;
+	name = set_name;
+	add_graphic();
+	init_weapon_colors();
+	initFrames();
 	shield_type = SHIELD_FRONT; /// @TODO: from editor
 	// load items from save
-    move_speed = PLAYER_MOVE_SPEED;
-    selected_weapon = 0;
-    name = "PLAYER1";
-    reset_charging_shot();
-}
+	if (game_data.players[_number].can_slide == true) {
+		slide_type = 1;
+	}
+    move_speed = PLAYER_MOVE_SPEED_INT_PART;
+    _fractional_move_speed = PLAYER_MOVE_SPEED_FLOAT_PART;
 
-void classPlayer::set_player_name(std::string set_name)
-{
-    name = set_name;
-}
+    _charged_shot_projectile_id = game_data.players[_number].full_charged_projectile_id;
 
-void classPlayer::initialize()
-{
+    //std::cout << ">>> p[" << _number << "]._charged_shot_projectile_id: " << _charged_shot_projectile_id << std::endl;
 
-    _number = game_save.selected_player;
-    if (_number == 3 || _number == 0) {
-        //_obj_jump.set_jump_acceleration(0.95);
-        _obj_jump.set_jump_limit(50);
-    }
-
-    std::cout << "### PLAYER::INIT::number: " << _number << std::endl;
-
-    max_projectiles = GameMediator::get_instance()->player_list[_number].max_shots;
-    // it is a player, can't have zero projectiles!!
-    if (max_projectiles < 1) {
-        max_projectiles = 1;
-    }
-    if (GameMediator::get_instance()->player_list[_number].can_slide == true) {
-        slide_type = 1;
-    }
-    _charged_shot_projectile_id = GameMediator::get_instance()->player_list[_number].full_charged_projectile_id;
-
-    _simultaneous_shots = GameMediator::get_instance()->player_list[_number].simultaneous_shots;
-    //std::cout << "classjump::set_acceleration - player[" << name << "], accel[" << GameMediator::get_instance()->player_list[_number].jump_gravity << "]" << std::endl;
+    _simultaneous_shots = game_data.players[_number].simultaneous_shots;
+    //std::cout << "classjump::set_acceleration - player[" << name << "], accel[" << game_data.players[_number].jump_gravity << "]" << std::endl;
     if (can_double_jump() == true) {
         _jumps_number = 2;
     } else {
         _jumps_number = 1;
     }
-    _damage_modifier = GameMediator::get_instance()->player_list[_number].damage_modifier;
+    _damage_modifier = game_data.players[_number].damage_modifier;
     update_armor_properties();
 }
 
 
 void classPlayer::init_weapon_colors()
 {
-    color_keys[0] = st_color(COLORKEY1_R, COLORKEY1_G, COLORKEY1_B);
-    color_keys[1] = st_color(COLORKEY2_R, COLORKEY2_G, COLORKEY2_B);
-    color_keys[2] = st_color(COLORKEY3_R, COLORKEY3_G, COLORKEY3_B);
-
-    for (int i=0; i<MAX_WEAPON_N; i++) {
-        weapon_colors[i] = GameMediator::get_instance()->player_list[_number].weapon_colors[i];
+	for (int i=0; i<3; i++) {
+		color_keys[i] = game_data.players[_number].color_keys[i];
+	}
+	for (int i=0; i<MAX_WEAPON_N; i++) {
+		weapon_colors[i] = game_data.players[_number].weapon_colors[i];
 	}
 }
 
@@ -279,11 +254,6 @@ void classPlayer::consume_weapon(int value)
     }
 }
 
-Uint8 classPlayer::get_max_hp()
-{
-    return fio.get_heart_pieces_number(game_save);
-}
-
 
 void classPlayer::attack(bool dont_update_colors)
 {
@@ -295,12 +265,10 @@ void classPlayer::attack(bool dont_update_colors)
 
 
     if (state.animation_type == ANIM_TYPE_HIT) { // can't fire when hit
-        //std::cout << ">> PLAYER::attack()::LEAVE #1" << std::endl;
         return;
     }
 
-    if (get_projectile_max_shots() <= projectile_list.size()) {
-        //std::cout << ">> PLAYER::attack()::LEAVE #2, max-shots: " << (int)get_projectile_max_shots() << std::endl;
+    if (get_projectile_max_shots() <= (int) projectile_list.size()) {
         return;
     }
 
@@ -310,7 +278,9 @@ void classPlayer::attack(bool dont_update_colors)
     }
 
     if (selected_weapon == WEAPON_DEFAULT) {
-        /// @NOTE: desabilitei o tiro em diagonal pois vai precisar mudanças no sistema de arquivos para comportar as poses/frames de ataque para cima e para baixo
+        /// @NOTE: desabilitei o tiro em diagonal pois vai precisar mudanças no sistema de arquivos para ocmportar as poses/frames
+        /// de ataque para cima e para baixo
+        //std::cout << ">> classPlayer::attack() - NORMAL" << std::endl;
         bool is_on_ground = hit_ground();
         if (can_shoot_diagonal() == true && moveCommands.up != 0 && is_on_ground == true) {
             character::attack(false, 1, auto_charged);
@@ -318,10 +288,6 @@ void classPlayer::attack(bool dont_update_colors)
             character::attack(false, -1, auto_charged);
         } else {
             character::attack(false, 0, auto_charged);
-        }
-        if (_player_must_reset_colors == true) {
-            _player_must_reset_colors = false;
-            change_player_color(true);
         }
         return;
     } else if (game_save.items.weapons[selected_weapon] <= 0) {
@@ -338,11 +304,13 @@ void classPlayer::attack(bool dont_update_colors)
     int used_weapon = selected_weapon;
     if (effect_type == TRAJECTORY_FREEZE) { // freeze can shoot normal projectiles
         if (max_projectiles > get_projectile_count()) {
+            //std::cout << "TRAJECTORY_FREEZE weapon detected!" << std::endl;
             character::attack(true, 0, auto_charged);
         }
         return;
     } else if (effect_type != -1) {
         if (moveCommands.attack != 0 && (timer.getTimer()-state.attack_timer) > 100 && attack_button_released == true) {
+            //std::cout << ">> classPlayer::attack() - already using an effect weapon" << std::endl;
             inc_effect_weapon_status(); // this method have a filter to inc only the types that are effect (centered, bomb, etc)
         }
         return;
@@ -365,17 +333,9 @@ void classPlayer::attack(bool dont_update_colors)
 
 
         if (used_weapon == WEAPON_ITEM_COIL) {
-            if (map->have_player_object() == true) {
-                weapon_id = -1;
-            } else {
-                add_coil_object();
-            }
+            add_coil_object();
         } else if (used_weapon == WEAPON_ITEM_JET) {
-            if (map->have_player_object() == true) {
-                weapon_id = -1;
-            } else {
-                add_jet_object();
-            }
+            add_jet_object();
         } else {
             weapon_id = used_weapon;
         }
@@ -385,27 +345,23 @@ void classPlayer::attack(bool dont_update_colors)
         }
 
         // check if projectiles limit from weapon/projectile os not reached
-        if (projectile_list.size() >= GameMediator::get_instance()->get_projectile(game_data.weapons[weapon_id].id_projectile).max_shots) {
+        if (projectile_list.size() >= game_data.projectiles[game_data.weapons[weapon_id].id_projectile].max_shots) {
             std::cout << "#### PLAYER::ATTACK - can't shot, weapon number reached ###" << std::endl;
             return;
         }
 
 
-        //soundManager.play_sfx(SFX_PLAYER_SHOT);
-
-
-        //std::cout << "############ weapon_id: " << weapon_id << std::endl;
+        soundManager.play_sfx(SFX_PLAYER_SHOT);
 
         projectile_list.push_back(projectile(game_data.weapons[weapon_id].id_projectile, state.direction, proj_pos, map, is_player()));
         projectile &temp_proj = projectile_list.back();
-        temp_proj.play_sfx(false);
         temp_proj.set_is_permanent();
         temp_proj.set_weapon_id(weapon_id);
 
 
         //std::cout << "weapon_id: " << weapon_id << ", projectile_id: " << game_data.weapons[weapon_id].id_projectile << std::endl;
 
-        int weapon_trajectory = GameMediator::get_instance()->get_projectile(game_data.weapons[weapon_id].id_projectile).trajectory;
+        int weapon_trajectory = game_data.projectiles[game_data.weapons[weapon_id].id_projectile].trajectory;
         if (weapon_trajectory == TRAJECTORY_CENTERED) {
             temp_proj.set_owner_direction(&state.direction);
             temp_proj.set_owner_position(&position);
@@ -427,7 +383,7 @@ void classPlayer::attack(bool dont_update_colors)
                 consume_weapon(4);
             } else if (weapon_trajectory == TRAJECTORY_FREEZE) {
                 consume_weapon(2);
-            } else if (used_weapon != WEAPON_ITEM_COIL && used_weapon != WEAPON_ITEM_JET) {
+            } else {
                 consume_weapon(1);
             }
         }
@@ -452,8 +408,8 @@ void classPlayer::damage_ground_npcs()
 	/// @TODO - this part must be done only ONCE
 	// find quake in projectiles list
 	int projectile_n = -1;
-    for (int i =0; i<GameMediator::get_instance()->get_projectile_list_size(); i++) {
-        if (GameMediator::get_instance()->get_projectile(i).trajectory == TRAJECTORY_QUAKE) {
+    for (int i =0; i<FS_MAX_PROJECTILES; i++) {
+		if (game_data.projectiles[i].trajectory == TRAJECTORY_QUAKE) {
 			projectile_n = i;
 			break;
 		}
@@ -475,24 +431,26 @@ void classPlayer::damage_ground_npcs()
 		std::cout << "damage_ground_npcs - could not find weapon with projectile of id '" << weapon_n << "'" << std::endl;
 		return;
 	}
-
-    for (int i=0; i<map->_npc_list.size(); i++) {
-        if (map->_npc_list.at(i).is_on_visible_screen() == false) {
+    std::vector<classnpc*>::iterator enemy_it;
+	for (enemy_it=map->_npc_list.begin(); enemy_it != map->_npc_list.end(); enemy_it++) {
+        if ((*enemy_it)->is_on_visible_screen() == false) {
 			continue;
 		}
 
 		// check if NPC is vulnerable to quake (all bosses except the one with weakness are not)
-        short damage = GameMediator::get_instance()->get_enemy(map->_npc_list.at(i).get_number()).weakness[weapon_n].damage_multiplier;
+		short damage = game_data.game_npcs[(*enemy_it)->get_number()].weakness[weapon_n].damage_multiplier;
 
 		// check if NPC is on ground
-        st_position npc_pos(map->_npc_list.at(i).getPosition().x, map->_npc_list.at(i).getPosition().y);
-        npc_pos.x = (npc_pos.x + map->_npc_list.at(i).get_size().width/2)/TILESIZE;
-        npc_pos.y = (npc_pos.y + map->_npc_list.at(i).get_size().height)/TILESIZE;
+        st_position npc_pos((*enemy_it)->getPosition().x, (*enemy_it)->getPosition().y);
+		npc_pos.x = (npc_pos.x + (*enemy_it)->get_size().width/2)/TILESIZE;
+        npc_pos.y = (npc_pos.y + (*enemy_it)->get_size().height)/TILESIZE;
 		int lock = map->getMapPointLock(npc_pos);
+		//std::cout << "damage_ground_npcs - NPC[" << (*enemy_it)->getName() << "].lock: " << lock << ", x: " << npc_pos.x << ", y: " << npc_pos.y << std::endl;
 		if (lock == TERRAIN_UNBLOCKED || lock == TERRAIN_STAIR || lock == TERRAIN_WATER) {
 			continue;
 		} else {
-            map->_npc_list.at(i).damage(damage, false);
+            //std::cout << "&&&&&&&&&&&&& damage_ground_npcs - DAMAGING NPC[" << (*enemy_it)->getName() << "]" << std::endl;
+            (*enemy_it)->damage(damage, false);
 		}
 	}
 }
@@ -507,81 +465,101 @@ void classPlayer::initFrames()
 	frameSize.width = 29;
     frameSize.height = 29;
 
-    add_graphic();
-    init_weapon_colors();
-
 	graphicsLib_gSurface playerSpriteSurface;
 	std::stringstream filename;
-    filename << FILEPATH + "images/sprites/p" << (_number+1) << ".png";
-    //filename << FILEPATH << "images/sprites/" << GameMediator::get_instance()->player_list[_number].graphic_filename;
-    //playerSpriteSurface.show_debug = true;
+    //filename << FILEPATH << "/data/images/sprites/p" << (_number+1) << ".png";
+    filename << FILEPATH << "/data/images/sprites/" << game_data.players[_number].graphic_filename;
 	graphLib.surfaceFromFile(filename.str(), &playerSpriteSurface);
-    if (playerSpriteSurface.get_surface() == NULL) {
+	if (playerSpriteSurface.gSurface == NULL) {
 		std::cout << "initFrames - Error loading player surface from file\n";
 		return;
 	}
 
-    // @TODO - automatically add inverse direction (right) sprites
-
 	// STAND
-    addSpriteFrame(ANIM_TYPE_STAND, 3, playerSpriteSurface, 5000);
-    addSpriteFrame(ANIM_TYPE_STAND, 4, playerSpriteSurface, 150);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAND, 3, 0, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAND, 4, 0, playerSpriteSurface, 150);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAND, 3, 1, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAND, 4, 1, playerSpriteSurface, 150);
 	// WALK
-    addSpriteFrame(ANIM_TYPE_WALK, 7, playerSpriteSurface, WALK_FRAME_DELAY);
-    addSpriteFrame(ANIM_TYPE_WALK, 8, playerSpriteSurface, WALK_FRAME_DELAY);
-    addSpriteFrame(ANIM_TYPE_WALK, 7, playerSpriteSurface, WALK_FRAME_DELAY);
-    addSpriteFrame(ANIM_TYPE_WALK, 6, playerSpriteSurface, WALK_FRAME_DELAY);
-
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK, 6, 0, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK, 7, 0, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK, 8, 0, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK, 7, 0, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK, 6, 1, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK, 7, 1, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK, 8, 1, playerSpriteSurface, WALK_FRAME_DELAY);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK, 7, 1, playerSpriteSurface, WALK_FRAME_DELAY);
 	// JUMP
-    addSpriteFrame(ANIM_TYPE_JUMP, 9, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_JUMP, 9, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_JUMP, 9, 1, playerSpriteSurface, 150);
 	// ATTACK
-    addSpriteFrame(ANIM_TYPE_ATTACK, 11, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 11, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_ATTACK, 11, 1, playerSpriteSurface, 150);
 	// ATTACK + JUMP
-    addSpriteFrame(ANIM_TYPE_JUMP_ATTACK, 10, playerSpriteSurface, 80);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_JUMP_ATTACK, 10, 0, playerSpriteSurface, 80);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_JUMP_ATTACK, 10, 1, playerSpriteSurface, 80);
 	// ATTACK + WALK
-    addSpriteFrame(ANIM_TYPE_WALK_ATTACK, 12, playerSpriteSurface, 150);
-    addSpriteFrame(ANIM_TYPE_WALK_ATTACK, 13, playerSpriteSurface, 150);
-    addSpriteFrame(ANIM_TYPE_WALK_ATTACK, 14, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK_ATTACK, 12, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK_ATTACK, 13, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_WALK_ATTACK, 14, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK_ATTACK, 12, 1, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK_ATTACK, 13, 1, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_WALK_ATTACK, 14, 1, playerSpriteSurface, 150);
 	// HIT
-    addSpriteFrame(ANIM_TYPE_HIT, 15, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_HIT, 15, 1, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_HIT, 15, 0, playerSpriteSurface, 150);
 	// TELEPORT
-    addSpriteFrame(ANIM_TYPE_TELEPORT, 0, playerSpriteSurface, 750);
-    addSpriteFrame(ANIM_TYPE_TELEPORT, 1, playerSpriteSurface, 300);
-    addSpriteFrame(ANIM_TYPE_TELEPORT, 2, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_TELEPORT, 0, 0, playerSpriteSurface, 750);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_TELEPORT, 1, 0, playerSpriteSurface, 300);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_TELEPORT, 2, 0, playerSpriteSurface, 150);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_TELEPORT, 0, 1, playerSpriteSurface, 750);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_TELEPORT, 1, 1, playerSpriteSurface, 300);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_TELEPORT, 2, 1, playerSpriteSurface, 150);
 	// STAIRS
-    addSpriteFrame(ANIM_TYPE_STAIRS, 17, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS, 17, 0, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS, 17, 1, playerSpriteSurface, 5000);
 	// stairs semi
-    addSpriteFrame(ANIM_TYPE_STAIRS_SEMI, 18, playerSpriteSurface, 5000);
-    addSpriteFrame(ANIM_TYPE_STAIRS_SEMI, 18, playerSpriteSurface, 5000);
-    addSpriteFrame(ANIM_TYPE_STAIRS, 17, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS_SEMI, 18, 0, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS_SEMI, 18, 1, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS_SEMI, 18, 0, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS_SEMI, 18, 1, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS, 17, 0, playerSpriteSurface, 5000);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS, 17, 1, playerSpriteSurface, 5000);
 	// stairs + move
-    addSpriteFrame(ANIM_TYPE_STAIRS_MOVE, 17, playerSpriteSurface, 200);
-    // stairs + attack
-    addSpriteFrame(ANIM_TYPE_STAIRS_ATTACK, 19, playerSpriteSurface, 500);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS_MOVE, 17, 0, playerSpriteSurface, 200);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS_MOVE, 17, 1, playerSpriteSurface, 200);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS_MOVE, 17, 0, playerSpriteSurface, 200);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS_MOVE, 17, 1, playerSpriteSurface, 200);
+	// stairs + attack
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_STAIRS_ATTACK, 19, 1, playerSpriteSurface, 500);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_STAIRS_ATTACK, 19, 0, playerSpriteSurface, 500);
 
     // slide
-    addSpriteFrame(ANIM_TYPE_SLIDE, 20, playerSpriteSurface, 1000);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_SLIDE, 20, 1, playerSpriteSurface, 1000);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_SLIDE, 20, 0, playerSpriteSurface, 1000);
 
     // throw
-    //addSpriteFrame(ANIM_TYPE_THROW, 21, 0, playerSpriteSurface, 1000);
+    //addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_THROW, 21, 1, playerSpriteSurface, 1000);
+    //addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_THROW, 21, 0, playerSpriteSurface, 1000);
 
 
 	// shield
-    addSpriteFrame(ANIM_TYPE_SHIELD, 22, playerSpriteSurface, 100);
+	addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_SHIELD, 22, 1, playerSpriteSurface, 100);
+	addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_SHIELD, 22, 0, playerSpriteSurface, 100);
 
     // shoot-diagonal-up
-    addSpriteFrame(ANIM_TYPE_ATTACK_DIAGONAL_UP, 23, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_ATTACK_DIAGONAL_UP, 23, 1, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK_DIAGONAL_UP, 23, 0, playerSpriteSurface, 100);
 
     // shoot-diagonal-down
-    addSpriteFrame(ANIM_TYPE_ATTACK_DIAGONAL_DOWN, 24, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_ATTACK_DIAGONAL_DOWN, 24, 1, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK_DIAGONAL_DOWN, 24, 0, playerSpriteSurface, 100);
 
     // special-attack
-    addSpriteFrame(ANIM_TYPE_SPECIAL_ATTACK, 25, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_LEFT, ANIM_TYPE_SPECIAL_ATTACK, 25, 1, playerSpriteSurface, 100);
+    addSpriteFrame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_SPECIAL_ATTACK, 25, 0, playerSpriteSurface, 100);
 
     playerSpriteSurface.freeGraphic();
-
-    change_player_color(true);
-
 }
 
 
@@ -598,8 +576,6 @@ void classPlayer::execute()
     }
     charMove();
     attack();
-
-
 }
 
 void classPlayer::execute_projectiles()
@@ -630,26 +606,24 @@ void classPlayer::execute_projectiles()
             continue;
         }
         // check colision agains enemies
-
-        for (int i=0; i<map->_npc_list.size(); i++) {
+        std::vector<classnpc*>::iterator enemy_it;
+        for (enemy_it=map->_npc_list.begin(); enemy_it != map->_npc_list.end(); enemy_it++) {
             if ((*it).is_finished == true) {
                 projectile_list.erase(it);
                 break;
             }
-            if (map->_npc_list.at(i).is_on_visible_screen() == false) {
+            if ((*enemy_it)->is_on_visible_screen() == false) {
                 continue;
             }
-            if (map->_npc_list.at(i).is_dead() == true) {
+            if ((*enemy_it)->is_dead() == true) {
                 continue;
             }
 
 
-            st_rectangle npc_hitbox = map->_npc_list.at(i).get_hitbox();
 
             //classnpc* enemy = (*enemy_it);
-            if ((*it).check_colision(npc_hitbox, st_position(moved.width, moved.height)) == true) {
-                // shielded NPC: reflects/finishes shot
-                if (map->_npc_list.at(i).is_shielded((*it).get_direction()) == true && (*it).get_trajectory() != TRAJECTORY_BOMB && (*it).get_trajectory() != TRAJECTORY_LIGHTING) {
+            if ((*it).check_colision(st_rectangle((*enemy_it)->getPosition().x, (*enemy_it)->getPosition().y, (*enemy_it)->get_size().width, (*enemy_it)->get_size().height), st_position(moved.width, moved.height)) == true) {
+                if ((*enemy_it)->is_shielded((*it).get_direction()) == true) { // shielded NPC -> reflects shot
                     if ((*it).get_trajectory() == TRAJECTORY_CHAIN) {
                         (*it).consume_projectile();
                     } else {
@@ -657,48 +631,53 @@ void classPlayer::execute_projectiles()
                     }
                     continue;
                 }
-                if (map->_npc_list.at(i).is_invisible() == true) { // invisible NPC -> ignore shot
+                if ((*enemy_it)->is_invisible() == true) { // invisible NPC -> ignore shot
                     continue;
                 }
 
                 // check if have hit area, and if hit it
-                st_rectangle enemy_hit_area = map->_npc_list.at(i).get_hit_area();
-                st_size enemy_size = map->_npc_list.at(i).get_size();
-                enemy_hit_area.x += map->_npc_list.at(i).getPosition().x-1;
-                enemy_hit_area.y += map->_npc_list.at(i).getPosition().y;
+                st_rectangle enemy_hit_area = (*enemy_it)->get_hit_area();
+                st_size enemy_size = (*enemy_it)->get_size();
+                enemy_hit_area.x += (*enemy_it)->getPosition().x-1;
+                enemy_hit_area.y += (*enemy_it)->getPosition().y;
 
+                //std::cout << ">> PLAYER::execute_projectiles[" << (*enemy_it)->getName() << "] - npc.h: " << enemy_size.height << ", hit_area.h: " << enemy_hit_area.h << std::endl;
                 if (enemy_hit_area.w != enemy_size.width || enemy_hit_area.h != enemy_size.height) {
+                    //std::cout << ">> PLAYER::execute_projectiles[" << (*enemy_it)->getName() << "] - use hit_area" << std::endl;
                     if ((*it).check_colision(enemy_hit_area, st_position(moved.width, moved.height)) == false) { // hit body, but not the hit area -> reflect
+                        //std::cout << ">> PLAYER::execute_projectiles[" << (*enemy_it)->getName() << "]Projectile missed - enemy_hit_area.w: " << enemy_hit_area.w << ", enemy_hit_area.h: " << enemy_hit_area.h << std::endl;
                         (*it).consume_projectile();
                         continue;
                     }
+                //} else {
+                    //std::cout << ">> PLAYER::execute_projectiles[" << (*enemy_it)->getName() << "] - DONT use hit_area" << std::endl;
                 }
 
                 short wpn_id = (*it).get_weapon_id();
 
+                //std::cout << "******* wpn_id: " << wpn_id << std::endl;
                 if (wpn_id < 0) {
                     wpn_id = 0;
                 }
 
+                //std::cout << ">> player weapon damage #1" << std::endl;
+                //std::cout << "******* (*enemy_it)->is_using_circle_weapon(): " << (*enemy_it)->is_using_circle_weapon() << ", (*it)->get_trajectory(): " << (*it)->get_trajectory() << ", TRAJECTORY_CHAIN: " << TRAJECTORY_CHAIN << std::endl;
                 // NPC using cicrcle weapon, is only be destroyed by CHAIN, but NPC won't take damage
-                if (map->_npc_list.at(i).is_using_circle_weapon() == true) {
+                if ((*enemy_it)->is_using_circle_weapon() == true) {
                     if ((*it).get_trajectory() == TRAJECTORY_CHAIN) {
-                        std::cout << "PROJ::END #3" << std::endl;
-                        map->_npc_list.at(i).consume_projectile();
+                        //std::cout << "PLAYER projectile hit NPC centered-weapon" << std::endl;
+                        (*enemy_it)->consume_projectile();
                     }
-                    std::cout << "PROJ::END #4" << std::endl;
                     (*it).consume_projectile();
                     return;
                 }
 
                 if ((*it).get_damage() > 0) {
-                    int multiplier = GameMediator::get_instance()->get_enemy(map->_npc_list.at(i).get_number()).weakness[wpn_id].damage_multiplier;
+                    int multiplier = game_data.game_npcs[(*enemy_it)->get_number()].weakness[wpn_id].damage_multiplier;
                     if (multiplier <= 0) {
                         multiplier = 1;
                     }
-                    map->_npc_list.at(i).damage((*it).get_damage() * multiplier, ignore_hit_timer);
-                } else {
-                    std::cout << "PLAYER::EXECUTE_PROJ - projectile damage is zero" << std::endl;
+                    (*enemy_it)->damage((*it).get_damage() * multiplier, ignore_hit_timer);
                 }
                 if ((*it).get_damage() > 0) {
                     (*it).consume_projectile();
@@ -714,7 +693,7 @@ void classPlayer::execute_projectiles()
             std::vector<object*> res_obj = map->check_collision_with_objects((*it).get_area());
             if (res_obj.size() > 0) {
                 //std::cout << "PLAYER::execute_projectiles - Found objects (" << res_obj.size() << ") that collides with bomb!" << std::endl;
-                for (unsigned int i=0; i<res_obj.size(); i++) {
+                for (size_t i=0; i<res_obj.size(); i++) {
                     object* temp_obj = res_obj.at(i);
                     //std::cout << "PLAYER::execute_projectiles - OBJ[" << temp_obj->get_name() << "].type: " << temp_obj->get_type() << ", OBJ_DESTRUCTIBLE_WALL: " << OBJ_DESTRUCTIBLE_WALL << std::endl;
                     if (temp_obj->get_type() == OBJ_DESTRUCTIBLE_WALL) {
@@ -757,7 +736,6 @@ void classPlayer::move()
 	if (input.p1_input[BTN_ATTACK] == 1) {
 		moveCommands.attack = 1;
 	} else {
-        //std::cout << ">>> moveCommands.attack::RESET #1" << std::endl;
 		moveCommands.attack = 0;
 	}
 	if (input.p1_input[BTN_SHIELD] == 1) {
@@ -773,14 +751,10 @@ void classPlayer::move()
 
     // players that shoot on diagonal can't move shile attacking
     if (can_shoot_diagonal()) {
-        if (is_on_attack_frame()) {
-            if (state.animation_type != ANIM_TYPE_JUMP_ATTACK) {
-                if (state.animation_type == ANIM_TYPE_WALK_ATTACK) {
-                    set_animation_type(ANIM_TYPE_ATTACK);
-                }
-                moveCommands.left = 0;
-                moveCommands.right = 0;
-            }
+        if (is_on_attack_frame() && state.animation_type != ANIM_TYPE_JUMP_ATTACK) {
+            //state.animation_type = ANIM_TYPE_ATTACK;
+            moveCommands.left = 0;
+            moveCommands.right = 0;
         }
     }
 
@@ -793,7 +767,7 @@ void classPlayer::move()
 		int selected_weapon_c = selected_weapon;
 		selected_weapon_c = find_next_weapon(selected_weapon, -1);
         if (selected_weapon_c != -1) {
-            set_weapon((WEAPON_ICONS_ENUM)selected_weapon_c, true);
+            set_weapon((WEAPON_ICONS_ENUM)selected_weapon_c);
         }
 		l_key_released = false;
         //std::cout << ">>> LBUTTON - selected_weapon: " << selected_weapon << ", selected_weapon_c: " << selected_weapon_c << ", WEAPON_COUNT: " << WEAPON_COUNT << std::endl;
@@ -809,7 +783,7 @@ void classPlayer::move()
 			selected_weapon_c = WEAPON_DEFAULT;
 		}
         if (selected_weapon_c != -1) {
-            set_weapon((WEAPON_ICONS_ENUM)selected_weapon_c, true);
+            set_weapon((WEAPON_ICONS_ENUM)selected_weapon_c);
         }
 		r_key_released = false;
         //std::cout << ">>> RBUTTON - selected_weapon: " << selected_weapon << ", selected_weapon_c: " << selected_weapon_c << ", WEAPON_COUNT: " << WEAPON_COUNT << std::endl;
@@ -836,7 +810,7 @@ void classPlayer::move()
 		}
 	}
 
-    if (GameMediator::get_instance()->player_list[_number].have_shield == true && moveCommands.up == 0 && moveCommands.down == 0 && moveCommands.left == 0 && moveCommands.right == 0 && moveCommands.jump == 0 && moveCommands.attack == 0 && moveCommands.shield == 1) {
+    if (game_data.players[_number].have_shield == true && moveCommands.up == 0 && moveCommands.down == 0 && moveCommands.left == 0 && moveCommands.right == 0 && moveCommands.jump == 0 && moveCommands.attack == 0 && moveCommands.shield == 1) {
 		if (state.animation_type != ANIM_TYPE_SHIELD) {
 			std::cout << "playerClass::initShield CHANGE anim_type: " << state.animation_type << " to " << ANIM_TYPE_SHIELD << std::endl;
             set_animation_type(ANIM_TYPE_SHIELD);
@@ -892,7 +866,7 @@ void classPlayer::teleport_stand()
 
 void classPlayer::death()
 {
-    //std::cout << "PLAYER::death, x: " << position.x << std::endl;
+    std::cout << "PLAYER::death" << std::endl;
     map->print_objects_number();
     reset_charging_shot();
 	map->clear_animations();
@@ -902,14 +876,10 @@ void classPlayer::death()
 	dead = true;
     _obj_jump.interrupt();
     _obj_jump.finish();
+    //std::cout << "[[[freeze_weapon_effect(RESET #1)]]]" << std::endl;
     freeze_weapon_effect = FREEZE_EFFECT_NONE;
-
-    last_hit_time = 0;
-
-    selected_weapon = 0;
     change_player_color(true);
-
-    set_weapon(WEAPON_DEFAULT, false);
+    set_weapon(WEAPON_DEFAULT);
     _inertia_obj.stop();
     clear_move_commands();
 	input.clean();
@@ -923,7 +893,6 @@ void classPlayer::death()
         return;
     }
     game_save.items.lifes--;
-    //std::cout << "PLAYER::DEATH::DONE" << std::endl;
 }
 
 void classPlayer::reset_hp()
@@ -935,48 +904,34 @@ void classPlayer::change_player_color(bool full_change)
 {
     //std::cout << "PLAYER::change_player_color - selected_weapon: " << selected_weapon << std::endl;
 	if (full_change == false) {
-        graphLib.change_surface_color(0, weapon_colors[selected_weapon].color1, &(character_graphics_list.find(name)->second)->frames[state.direction][state.animation_type][state.animation_state].frameSurface);
-        graphLib.change_surface_color(1, weapon_colors[selected_weapon].color2, &(character_graphics_list.find(name)->second)->frames[state.direction][state.animation_type][state.animation_state].frameSurface);
-        graphLib.change_surface_color(2, weapon_colors[selected_weapon].color3, &(character_graphics_list.find(name)->second)->frames[state.direction][state.animation_type][state.animation_state].frameSurface);
+		graphLib.change_surface_color(color_keys[0], weapon_colors[selected_weapon].color1, &(character_graphics_list.find(name)->second)[state.direction][state.animation_type][state.animation_state].frameSurface);
+		graphLib.change_surface_color(color_keys[0], weapon_colors[selected_weapon].color2, &(character_graphics_list.find(name)->second)[state.direction][state.animation_type][state.animation_state].frameSurface);
+		graphLib.change_surface_color(color_keys[0], weapon_colors[selected_weapon].color3, &(character_graphics_list.find(name)->second)[state.direction][state.animation_type][state.animation_state].frameSurface);
 	} else {
         for (int i=0; i<CHAR_ANIM_DIRECTION_COUNT; i++) {
 			for (int j=0; j<ANIM_TYPE_COUNT; j++) {
 				for (int k=0; k<ANIM_FRAMES_COUNT; k++) {
 					if (weapon_colors[selected_weapon].color1.r != -1) {
-                        graphLib.change_surface_color(0, weapon_colors[selected_weapon].color1, &(character_graphics_list.find(name)->second)->frames[i][j][k].frameSurface);
+						graphLib.change_surface_color(color_keys[0], weapon_colors[selected_weapon].color1, &(character_graphics_list.find(name)->second)[i][j][k].frameSurface);
 					}
 					if (weapon_colors[selected_weapon].color2.r != -1) {
-                        graphLib.change_surface_color(1, weapon_colors[selected_weapon].color2, &(character_graphics_list.find(name)->second)->frames[i][j][k].frameSurface);
+						graphLib.change_surface_color(color_keys[1], weapon_colors[selected_weapon].color2, &(character_graphics_list.find(name)->second)[i][j][k].frameSurface);
 					}
 					if (weapon_colors[selected_weapon].color3.r != -1) {
-                        graphLib.change_surface_color(2, weapon_colors[selected_weapon].color3, &(character_graphics_list.find(name)->second)->frames[i][j][k].frameSurface);
+						graphLib.change_surface_color(color_keys[2], weapon_colors[selected_weapon].color3, &(character_graphics_list.find(name)->second)[i][j][k].frameSurface);
 					}
 				}
 			}
 		}
 	}
+    //static std::map<std::string, st_spriteFrame[CHAR_ANIM_DIRECTION_COUNT][ANIM_TYPE_COUNT][ANIM_FRAMES_COUNT]> character_graphics_list;
+
 }
 
-void classPlayer::save_input()
-{
-    saved_move_commands = moveCommands;
-    //std::cout << "PLAYER::save_input::ATTACK: " << moveCommands.attack << ", BTN-ATTACK: " << (int)saved_input[BTN_ATTACK] << std::endl;
-}
-
-void classPlayer::restore_input()
-{
-    //std::cout << "PLAYER::restore_input::OLD-ATTACK: " << saved_move_commands.attack << std::endl;
-    moveCommands = saved_move_commands;
-    //std::cout << "PLAYER::restore_input::ATTACK: " << moveCommands.attack << ", BTN-ATTACK: " << (int)input.p1_input[BTN_ATTACK] << std::endl;
-}
-
-void classPlayer::set_weapon(short weapon_n, bool show_tooltip_icon)
+void classPlayer::set_weapon(short weapon_n)
 {
 	selected_weapon = weapon_n;
-    if (show_tooltip_icon == true) {
-        draw_lib.add_weapon_tooltip(selected_weapon, realPosition, state.direction);
-    }
-    change_player_color(true);
+	change_player_color(true);
 }
 
 short classPlayer::get_weapon_value(int weapon_n)
@@ -1013,8 +968,8 @@ void classPlayer::refill_weapons()
 
 void classPlayer::set_teleport_minimal_y(int y)
 {
-    std::cout << "PLAYER::set_teleport_minimal_y[" << y << "]" << std::endl;
-    _teleport_minimal_y = y-2;
+    std::cout << "######### classPlayer::set_teleport_minimal_y - y: " << y << std::endl;
+    _teleport_minimal_y = y;
 }
 
 bool classPlayer::can_fly()
@@ -1025,6 +980,9 @@ bool classPlayer::can_fly()
 
 void classPlayer::add_coil_object()
 {
+    if (map->have_player_object() == true) { // check if any other special item is present on screen
+        return;
+    }
     if (game_save.items.weapons[selected_weapon] > 0) {
         //std::cout << ">>>>>>> adding coil object" << std::endl;
 		st_position obj_pos;
@@ -1048,10 +1006,13 @@ void classPlayer::add_coil_object()
 
 void classPlayer::add_jet_object()
 {
+    if (map->have_player_object() == true) {
+        return;
+    }
     if (game_save.items.weapons[selected_weapon] > 0) {
         //std::cout << ">>>>>>> adding JET object" << std::endl;
 		st_position obj_pos;
-        obj_pos.y = position.y + TILESIZE;
+        obj_pos.y = position.y;
         if (state.direction == ANIM_DIRECTION_LEFT) {
             obj_pos.x = position.x - 2;
         } else {
@@ -1072,21 +1033,22 @@ classnpc *classPlayer::find_nearest_npc()
 	classnpc* ret = NULL;
     std::vector<classnpc*>::iterator enemy_it;
 
-    for (int i=0; i<map->_npc_list.size(); i++) {
-        if (map->_npc_list.at(i).is_on_visible_screen() == false) {
+    for (enemy_it=map->_npc_list.begin(); enemy_it != map->_npc_list.end(); enemy_it++) {
+        if ((*enemy_it)->is_on_visible_screen() == false) {
 			continue;
 		}
-        if (map->_npc_list.at(i).is_dead() == true) {
+        if ((*enemy_it)->is_dead() == true) {
             continue;
         }
 
-        st_position npc_pos(map->_npc_list.at(i).getPosition().x*TILESIZE, map->_npc_list.at(i).getPosition().y*TILESIZE);
-        npc_pos.x = (npc_pos.x + map->_npc_list.at(i).get_size().width/2)/TILESIZE;
-        npc_pos.y = (npc_pos.y + map->_npc_list.at(i).get_size().height)/TILESIZE;
+        st_position npc_pos((*enemy_it)->getPosition().x*TILESIZE, (*enemy_it)->getPosition().y*TILESIZE);
+		npc_pos.x = (npc_pos.x + (*enemy_it)->get_size().width/2)/TILESIZE;
+        npc_pos.y = (npc_pos.y + (*enemy_it)->get_size().height)/TILESIZE;
 
         // pitagoras: raiz[ (x2-x1)^2 + (y2-y1)^2 ]
         int dist = sqrt(pow((float)(position.x - npc_pos.x), (float)2) + pow((float)(position.y - npc_pos.y ), (float)2));
         if (dist < lower_dist) {
+            //std::cout << "PLAYER::find_nearest_npc - found NPC[" << (*enemy_it)->getName() << "], dist: " << dist << std::endl;
             lower_dist = dist;
 			ret = (*enemy_it);
         }
@@ -1107,15 +1069,14 @@ void classPlayer::show_hp()
     if (_show_hp == false) {
         return;
     }
-    graphLib.draw_hp_bar(get_current_hp(), get_number(), WEAPON_DEFAULT, fio.get_heart_pieces_number(game_save));
+    graphLib.draw_hp_bar(get_current_hp(), get_number(), WEAPON_DEFAULT);
     if (get_selected_weapon() != WEAPON_DEFAULT) {
-        graphLib.draw_hp_bar(get_weapon_value(get_selected_weapon()),get_number(), get_selected_weapon(), fio.get_heart_pieces_number(game_save));
+        graphLib.draw_hp_bar(get_weapon_value(get_selected_weapon()),get_number(), get_selected_weapon());
     }
 }
 
 void classPlayer::clean_move_commands()
 {
-    std::cout << ">>> moveCommands.attack::RESET #2" << std::endl;
     moveCommands.attack = 0;
     moveCommands.dash = 0;
     moveCommands.down = 0;
@@ -1129,7 +1090,7 @@ void classPlayer::clean_move_commands()
 
 bool classPlayer::can_shoot_diagonal()
 {
-    if (GameMediator::get_instance()->player_list[_number].can_shot_diagonal) {
+    if (game_data.players[_number].can_shot_diagonal) {
         return true;
     }
     // armor-pieces checking
@@ -1140,7 +1101,7 @@ bool classPlayer::can_shoot_diagonal()
 
 bool classPlayer::can_double_jump()
 {
-    if (GameMediator::get_instance()->player_list[_number].can_double_jump) {
+    if (game_data.players[_number].can_double_jump) {
         return true;
     }
     // -------------------- armor-pieces checking -------------------- //
@@ -1152,7 +1113,7 @@ bool classPlayer::can_double_jump()
 
 bool classPlayer::can_air_dash()
 {
-    if (GameMediator::get_instance()->player_list[_number].can_air_dash == true) {
+    if (game_data.players[_number].can_air_dash == true) {
         return true;
     }
 
@@ -1179,7 +1140,7 @@ void classPlayer::damage(unsigned int damage_points, bool ignore_hit_timer)
     character::damage(damage_points, ignore_hit_timer);
 }
 
-float classPlayer::get_hit_push_back_n()
+int classPlayer::get_hit_push_back_n()
 {
     if (game_save.armor_pieces[ARMOR_BODY] == true && game_data.armor_pieces[ARMOR_BODY].special_ability[_number] == ARMOR_ABILITY_BODY_NOPUSHBACK) {
         return 0;
@@ -1188,14 +1149,21 @@ float classPlayer::get_hit_push_back_n()
     }
 }
 
-int classPlayer::get_armor_arms_attack_id()
+bool classPlayer::have_super_shot()
 {
-    if (game_save.armor_pieces[ARMOR_ARMS] == true) {
-         return game_data.armor_pieces[ARMOR_ARMS].special_ability[_number];
+    if (game_save.armor_pieces[ARMOR_ARMS] == true && game_data.armor_pieces[ARMOR_ARMS].special_ability[_number] == ARMOR_ABILITY_ARMS_SUPERSHOT) {
+        return true;
     }
-    return -1;
+    return false;
 }
 
+bool classPlayer::have_laser_shot()
+{
+    if (game_save.armor_pieces[ARMOR_ARMS] == true && game_data.armor_pieces[ARMOR_ARMS].special_ability[_number] == ARMOR_ABILITY_ARMS_LASERBEAM) {
+        return true;
+    }
+    return false;
+}
 
 bool classPlayer::have_shoryuken()
 {
@@ -1213,11 +1181,12 @@ void classPlayer::update_armor_properties()
     if (game_save.armor_pieces[ARMOR_BODY] == true && game_data.armor_pieces[ARMOR_BODY].special_ability[_number] == ARMOR_ABILITY_BODY_EXTENDEDIMMUNITY) {
         hit_duration = 4000;
     }
-    int armor_attack_id = get_armor_arms_attack_id();
-    if (armor_attack_id != -1) {
-        _charged_shot_projectile_id = armor_attack_id;
+    if (have_laser_shot() == true) {
+        _charged_shot_projectile_id = 21;
     }
-
+    if (game_save.armor_pieces[ARMOR_ARMS] == true && game_data.armor_pieces[ARMOR_ARMS].special_ability[_number] == ARMOR_ABILITY_ARMS_MISSILE) {
+        _charged_shot_projectile_id = 22;
+    }
 }
 
 
@@ -1229,17 +1198,12 @@ void classPlayer::reset_charging_shot()
     state.attack_timer = 0;
     attack_button_released = true;
     soundManager.stop_repeated_sfx();
-
-    change_player_color(true);
-
-    /*
     if (color_keys[0].r != -1) {
-        change_char_color(0, color_keys[0], true);
+        change_char_color(color_keys[0], color_keys[0], true);
     }
     if (color_keys[1].r != -1) {
-        change_char_color(1, color_keys[1], true);
+        change_char_color(color_keys[1], color_keys[1], true);
     }
-    */
     // also reset slide/dash
     if (state.animation_type == ANIM_TYPE_SLIDE) {
         set_animation_type(ANIM_TYPE_WALK);

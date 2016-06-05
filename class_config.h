@@ -55,7 +55,7 @@ public:
     st_position convert_stage_n_to_menu_pos(short stage_n) const;
 
 
-    Sint8 find_next_weapon(Uint8 current, Uint8 move) const; // used by L/R buttons
+    int find_next_weapon(int current, int move) const; // used by L/R buttons
 
     void disable_ingame_menu();
 
@@ -67,7 +67,7 @@ private:
      * @param x_inc
      * @param y_inc
      */
-    void move_cursor(Sint8 x_inc, Sint8 y_inc);
+    void move_cursor(int x_inc, int y_inc);
     /**
      * @brief
      *
@@ -93,9 +93,16 @@ private:
      */
     st_position move_weapon_curstor_down();
 
-
-    void weapon_menu_show_player();
-
+    /**
+     * @brief
+     *
+     */
+    void change_player_frame_color();
+    /**
+     * @brief
+     *
+     * @param tank_type
+     */
     void use_tank(int tank_type);
 
     void generate_weapons_matrix();
@@ -108,6 +115,7 @@ private:
     bool ingame_menu_active; /**< TODO */
     st_position ingame_menu_pos; /**< Cursor porion in menu. X = 0 means left column, x=1 means right column */
     classPlayer* player_ref; /**< TODO */
+    graphicsLib_gSurface _player_surface; /**< TODO */
     bool _weapons_matrix[WPN_COLS][WPN_ROWS]; // this indicates if a weapon is present in that position or not
     bool _weapons_array[WEAPON_COUNT]; // this indicates if a weapon is present in that position or not
 };

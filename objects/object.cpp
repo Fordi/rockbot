@@ -36,20 +36,20 @@ extern game gameControl;
 
 
 // constructor for map_object
-object::object(Uint8 set_id, classMap *set_map, st_position map_pos, st_position teleporter_dest, Uint8 map_dest) : _finished(false), _state(0), _duration(0), _timer_limit(0), _started(false), _animation_finished(false), _animation_reversed(false), _hidden(false)
+object::object(int set_id, classMap *set_map, st_position map_pos, st_position teleporter_dest, int map_dest) : _finished(false), _state(0), _duration(0), _timer_limit(0), _started(false), _animation_finished(false), _animation_reversed(false), _hidden(false)
 {
 	map = set_map;
 	_id = set_id;
-    name = std::string(GameMediator::get_instance()->object_list.at(_id).name);
-    graphic_filename = GameMediator::get_instance()->object_list.at(_id).graphic_filename;
-    type = GameMediator::get_instance()->object_list.at(_id).type;
-    obj_timer = GameMediator::get_instance()->object_list.at(_id).timer;
-    speed = GameMediator::get_instance()->object_list.at(_id).speed;
-    limit = GameMediator::get_instance()->object_list.at(_id).limit;
+	name = std::string(game_data.objects[_id].name);
+	graphic_filename = game_data.objects[_id].graphic_filename;
+	type = game_data.objects[_id].type;
+	obj_timer = game_data.objects[_id].timer;
+	speed = game_data.objects[_id].speed;
+	limit = game_data.objects[_id].limit;
 	direction = 0;
 	distance = 0;
-    framesize_w = GameMediator::get_instance()->object_list.at(_id).size.width;
-    framesize_h = GameMediator::get_instance()->object_list.at(_id).size.height;
+	framesize_w = game_data.objects[_id].size.width;
+	framesize_h = game_data.objects[_id].size.height;
 	frame = 0;
 	start_point.x = map_pos.x*TILESIZE;
 	start_point.y = map_pos.y*TILESIZE;
@@ -71,7 +71,7 @@ object::object(Uint8 set_id, classMap *set_map, st_position map_pos, st_position
     _command_up = false;
 	_command_down = false;
     _start_timer = 0;
-    _obj_frame_timer = timer.getTimer()+GameMediator::get_instance()->object_list.at(_id).frame_duration;
+    _obj_frame_timer = timer.getTimer()+game_data.objects[_id].frame_duration;
     _timer_limit = 0;
     _must_play_appearing_sfx = false;    _must_teleport_in = false;
     _teleport_state = 0;
@@ -194,7 +194,7 @@ bool object::test_change_position(short xinc, short yinc)
 
     if (is_consumable() == false) {
         // collision agains player when player is not using a platform
-        int blocked = map->colision_rect_player_obj(gameControl.get_player()->get_hitbox(), this, 0, 0, xinc, yinc);
+        int blocked = map->colision_rect_player_obj(gameControl.get_player(), this, 0, 0, 0, 0, xinc, yinc);
         //if (blocked != 0) std::cout << "obj.blocked: " << blocked << std::endl;
         /// @TODO - consumable items should not stop if blocked by player
         if (gameControl.get_player_platform() != this && blocked != 0) {
@@ -210,7 +210,7 @@ bool object::test_change_position(short xinc, short yinc)
 	short p1 = map->getMapPointLock(st_position((position.x+2+xinc)/TILESIZE, (position.y+yinc+framesize_h-2)/TILESIZE));
 	short p2 = map->getMapPointLock(st_position((position.x+framesize_w-2+xinc)/TILESIZE, (position.y+yinc+framesize_h-2)/TILESIZE));
     //std::cout << "object::test_change_position - p1: " << p1 << ", p2: " << p2 << std::endl;
-    if ((p1 == TERRAIN_UNBLOCKED ||  p1 == TERRAIN_WATER || p1 == TERRAIN_SPIKE) && (p2 ==TERRAIN_UNBLOCKED ||  p2 == TERRAIN_WATER|| p2 == TERRAIN_SPIKE)) {
+	if ((p1 == TERRAIN_UNBLOCKED ||  p1 == TERRAIN_WATER) && (p2 ==TERRAIN_UNBLOCKED ||  p2 == TERRAIN_WATER)) {
 		return true;
 	}
 	return false;
@@ -231,7 +231,7 @@ void object::check_player_move(int xinc, int yinc) const
     }
 	if (gameControl.get_player_platform() == this) {
         //std::cout << "************* object::check_player_move - MOVE xinc: " << xinc << ", yinc: " << yinc << " **************" << std::endl;
-        gameControl.change_player_position(xinc, yinc);
+		gameControl.change_player_position(xinc, yinc, 0);
     }
 }
 
@@ -275,12 +275,6 @@ void object::set_precise_position(st_position pos, int direction)
 
 }
 
-void object::set_position(st_position pos)
-{
-    position.x = pos.x - framesize_w/2;
-    position.y = pos.y - framesize_h/2;
-}
-
 
 
 
@@ -296,57 +290,63 @@ void object::show(int adjust_y, int adjust_x)
 	if (map == NULL) {
 		return;
 	}
-
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-
-    if (draw_lib.get_object_graphic(_id) == NULL) {
-        std::cout << "### OBJECT::SHOW - can't find graphic' ###" << std::endl;
+    graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
+    if (graphic == NULL) {
+		//std::cout << "object::show - could not find graphic for object with id " << _id << std::endl;
 		return;
 	}
 
+	//printf("********* check draw object, x: %d, y: %d\n", position.x, position.y);
     if (_hidden == true) {
-        std::cout << "### OBJECT::SHOW::HIDDEN ###" << std::endl;
+		//printf("********* show_object_sprites - hidden object\n");
 		return;
 	}
 
     if (_must_teleport_in) {
         if (_teleport_state == e_object_teleport_state_teleport_in || _teleport_state == e_object_teleport_state_teleport_out) {
-            draw_lib.show_teleport_small(position.x - scroll_x, position.y);
+            draw_lib.show_teleport_small(position.x - map->getMapScrolling().x, position.y);
             return;
         }
     }
 
-    //std::cout << "LOOP: obj[" << name << "] position.x: " << position.x << ", scroll_x: " << scroll_x << ", dest.x: " << graphic_destiny.x << ", dest.y: " << graphic_destiny.y << std::endl;
-
-    // ray have a different way to show itself
-    if (type == OBJ_RAY_VERTICAL) {
-        show_vertical_ray(adjust_x, adjust_y);
-        return;
-    } else if (type == OBJ_RAY_HORIZONTAL) {
-        show_horizontal_ray(adjust_x, adjust_y);
-        return;
-    } else if (type == OBJ_TRACK_PLATFORM) {
-        show_track_platform(adjust_x, adjust_y);
-        return;
-    } else if (type == OBJ_DEATHRAY_VERTICAL) {
-        show_deathray_vertical(adjust_x, adjust_y);
-        return;
-    } else if (type == OBJ_DEATHRAY_HORIZONTAL) {
-        show_deathray_horizontal(adjust_x, adjust_y);
+    if (is_on_screen() == false) { // no need to show graphics if object is just not visible
         return;
     }
 
-    int max_frames = ((draw_lib.get_object_graphic(_id))->width/framesize_w)-1;
+
+    // ray have a different way to show itself
+    if (type == OBJ_RAY_VERTICAL) {
+        show_vertical_ray(adjust_y);
+        return;
+    } else if (type == OBJ_RAY_HORIZONTAL) {
+        show_horizontal_ray(adjust_y);
+        return;
+    } else if (type == OBJ_TRACK_PLATFORM) {
+        show_track_platform(adjust_y);
+        return;
+    } else if (type == OBJ_DEATHRAY_VERTICAL) {
+        show_deathray_vertical(adjust_y);
+        return;
+    } else if (type == OBJ_DEATHRAY_HORIZONTAL) {
+        show_deathray_horizontal(adjust_y);
+        return;
+    }
+
+    int max_frames = (graphic->width/framesize_w)-1;
 
 
+    //if (name == "Disappearing Block #1") std::cout << "OBJ::show::max_frames: " << max_frames << std::endl;
 
 	// checks if the Object is near the screen to show it
-    if (position.x+TILESIZE >= abs(scroll_x) && position.x-TILESIZE <= abs(scroll_x)+RES_W) {
+	if (position.x+16 >= abs((float)map->getMapScrolling().x) && position.x-16 <= abs((float)map->getMapScrolling().x)+RES_W) {
 		// animation
-        if ((GameMediator::get_instance()->object_list.at(_id).animation_auto_start == true || (GameMediator::get_instance()->object_list.at(_id).animation_auto_start == false && _started == true)) && framesize_w * 2 <= (draw_lib.get_object_graphic(_id)->width))  { // have at least two frames
+
+
+
+
+		//std::cout << "object::show - frame_duration: " << game_data.objects[_id].frame_duration << std::endl;
+
+        if ((game_data.objects[_id].animation_auto_start == true || (game_data.objects[_id].animation_auto_start == false && _started == true)) && framesize_w * 2 <= graphic->width)  { // have at least two frames
 			graphic_origin.x = frame * framesize_w;
             if (_obj_frame_timer < timer.getTimer()) {
 				if (_animation_finished == false) { //
@@ -356,7 +356,7 @@ void object::show(int adjust_y, int adjust_x)
 						frame--;
 					}
 				}
-                _obj_frame_timer = timer.getTimer()+GameMediator::get_instance()->object_list.at(_id).frame_duration;
+                _obj_frame_timer = timer.getTimer()+game_data.objects[_id].frame_duration;
 			}
 
 			if (frame <= 0) {
@@ -368,10 +368,10 @@ void object::show(int adjust_y, int adjust_x)
 				frame = 0;
 			}
 			if	(_animation_reversed == false && frame > max_frames) {
-                if (GameMediator::get_instance()->object_list.at(_id).animation_loop == false) { // if animation loop is set to false, set this to show always the last frame
-                    if (GameMediator::get_instance()->object_list.at(_id).animation_reverse == false) { // don't need to reverse animation, finish it
+				if (game_data.objects[_id].animation_loop == false) { // if animation loop is set to false, set this to show always the last frame
+					if (game_data.objects[_id].animation_reverse == false) { // don't need to reverse animation, finish it
 						_animation_finished = true;
-                        frame = draw_lib.get_object_graphic(_id)->width/framesize_w-1;
+                        frame = graphic->width/framesize_w-1;
 					} else {
 						_animation_reversed = true; // start animation reverse process
 						frame--;
@@ -389,8 +389,11 @@ void object::show(int adjust_y, int adjust_x)
         }
 
 		//std::cout << "object::show - frame_n: " << frame << ", _animation_reversed: " << _animation_reversed << ", max_frames: " << max_frames << std::endl;
+
+
 		// direction
-        if (framesize_h*2 <= draw_lib.get_object_graphic(_id)->height)  {
+		//printf(">> sprite->h: %d, framesize_h*2: %d <<\n", sprite->h, (framesize_h*2));
+        if (framesize_h*2 <= graphic->height)  {
 			//std::cout << ">>>> object height is enought for direction-right";
 			if (direction != ANIM_DIRECTION_RIGHT) {
 				graphic_origin.y = 0;
@@ -398,22 +401,22 @@ void object::show(int adjust_y, int adjust_x)
 				graphic_origin.y = framesize_h;
 			}
 		} else {
-            //std::cout << ">>>> NOT object image-height(" << (objects_sprite_list.find(name)->second).height << ") is NOT enought for direction-right. framesize_h: " << framesize_h << std::endl;
+			//std::cout << ">>>> NOT object image-height(" << (objects_sprite_list.find(name)->second).height << ") is NOT enought for direction-right. framesize_h: " << framesize_h << std::endl;
 			graphic_origin.y = 0;
 		}
+
 
 		graphic_origin.w = framesize_w;
 		graphic_origin.h = framesize_h;
 
 		// parte que vai ser colada
-        graphic_destiny.x = position.x - scroll_x;
+		graphic_destiny.x = position.x - map->getMapScrolling().x;
 		graphic_destiny.y = position.y + map->getMapScrolling().y;
+		//std::cout << "searching for graphic '" << name << "'" << std::endl;
+        //std::cout << "object::show - map->getMapScrolling().x: " << map->getMapScrolling().x << ", map->getMapScrolling().y: " << map->getMapScrolling().y << ", position.y: " << position.y << ", graphic_destiny.x: " << graphic_destiny.x << ", graphic_destiny.y: " << graphic_destiny.y << std::endl;
 
-        //std::cout << "obj[" << name << "] position.x: " << position.x << ", scroll_x: " << scroll_x << ", dest.x: " << graphic_destiny.x << ", dest.y: " << graphic_destiny.y << std::endl;
-
-
-        if (draw_lib.get_object_graphic(_id) != NULL) { // there is no graphic with this key yet, add it
-            graphLib.copyArea(st_rectangle(graphic_origin.x, graphic_origin.y, graphic_origin.w, graphic_origin.h), st_position(graphic_destiny.x, graphic_destiny.y+adjust_y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+        if (graphic != NULL) { // there is no graphic with this key yet, add it
+            graphLib.copyArea(st_rectangle(graphic_origin.x, graphic_origin.y, graphic_origin.w, graphic_origin.h), st_position(graphic_destiny.x+adjust_x, graphic_destiny.y+adjust_y), graphic, &graphLib.gameScreen);
             // disappearning block has a shadow under it
             if (type == OBJ_DISAPPEARING_BLOCK) {
                 graphLib.clear_area(graphic_destiny.x, graphic_destiny.y+framesize_h+adjust_y, framesize_w, 6, 0, 0, 0);
@@ -426,156 +429,147 @@ void object::show(int adjust_y, int adjust_x)
 
 	// remove item that is out of vision
     } else if (_teleport_state == 2 && (type == OBJ_ITEM_FLY || type == OBJ_ITEM_JUMP)) {
+        //std::cout << "REMOVE ITEM" << std::endl;
 		_finished = true;
     }
 }
 
 
-void object::show_deathray_vertical(int adjust_x, int adjust_y)
+void object::show_deathray_vertical(int adjust_y)
 {
     st_position graphic_destiny;
 
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-    graphic_destiny.x = position.x - scroll_x;
-    graphic_destiny.y = position.y + map->getMapScrolling().y;
+    graphic_destiny.x = position.x - map->getMapScrolling().x;
+    graphic_destiny.y = position.y + map->getMapScrolling().y + +adjust_y;
 
+	graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
 
-    if (draw_lib.get_object_graphic(_id) != NULL) {
+    if (graphic != NULL) {
         if (_obj_frame_timer < timer.getTimer()) {
-            _obj_frame_timer = timer.getTimer() + GameMediator::get_instance()->object_list.at(_id).frame_duration;
+            _obj_frame_timer = timer.getTimer() + game_data.objects[_id].frame_duration;
             _teleport_state = !_teleport_state;
         }
 
         // draw base
-        graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, 0, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+        graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, 0, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y), graphic, &graphLib.gameScreen);
         if (_state == 1) {
             // point
-            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE), graphic, &graphLib.gameScreen);
         } else if (_state == 2) {
             // point
-            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*2), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*2), graphic, &graphLib.gameScreen);
             // body
-            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE), graphic, &graphLib.gameScreen);
         } else if (_state > 2) {
             if (_expanding == true) {
                 // point
-                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*_state), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*3, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*_state), graphic, &graphLib.gameScreen);
                 // body
                 for (int i=1; i<_state; i++) {
-                    graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*i), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                    graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*i), graphic, &graphLib.gameScreen);
                 }
             } else {
                 int start_x = _state - MAP_H;
                 // body
                 for (int i=start_x+1; i<_state; i++) {
-                    graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*i), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                    graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE*2, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*i), graphic, &graphLib.gameScreen);
                 }
                 // tail
-                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*start_x), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, TILESIZE, framesize_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y+TILESIZE*start_x), graphic, &graphLib.gameScreen);
             }
 
         }
     }
 }
 
-void object::show_deathray_horizontal(int adjust_x, int adjust_y)
+void object::show_deathray_horizontal(int adjust_y)
 {
     st_position graphic_destiny;
 
+    graphic_destiny.x = position.x - map->getMapScrolling().x;
+    graphic_destiny.y = position.y + map->getMapScrolling().y + +adjust_y;
 
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-    graphic_destiny.x = position.x - scroll_x;
-    graphic_destiny.y = position.y + map->getMapScrolling().y;
+	graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
 
-    if (draw_lib.get_object_graphic(_id) != NULL) {
+    if (graphic != NULL) {
         if (_obj_frame_timer < timer.getTimer()) {
-            _obj_frame_timer = timer.getTimer() + GameMediator::get_instance()->object_list.at(_id).frame_duration;
+            _obj_frame_timer = timer.getTimer() + game_data.objects[_id].frame_duration;
             _teleport_state = !_teleport_state;
         }
 
 
         if (direction == ANIM_DIRECTION_LEFT) {
             // draw base
-            graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), graphic, &graphLib.gameScreen);
             if (_size == 1) {
                 // point
-                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*2, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*2, graphic_destiny.y), graphic, &graphLib.gameScreen);
             } else if (_size == 2) {
                 // point
-                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*2, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*2, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 // body
-                graphLib.copyArea(st_rectangle(TILESIZE+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(TILESIZE+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE, graphic_destiny.y), graphic, &graphLib.gameScreen);
             } else if (_size > 2) {
                 // point
-                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*_size, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*_size, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 // body
                 for (int i=1; i<_size; i++) {
-                    graphLib.copyArea(st_rectangle(TILESIZE+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*i, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                    graphLib.copyArea(st_rectangle(TILESIZE+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x-TILESIZE*i, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 }
             }
         } else {
             // draw base
-            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), graphic, &graphLib.gameScreen);
             if (_size == 1) {
                 // point
-                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE, graphic_destiny.y), graphic, &graphLib.gameScreen);
             } else if (_size == 2) {
                 // point
-                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*2, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*2, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 // body
-                graphLib.copyArea(st_rectangle(TILESIZE*2+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(TILESIZE*2+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE, graphic_destiny.y), graphic, &graphLib.gameScreen);
             } else if (_size > 2) {
                 // point
-                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*_size, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                graphLib.copyArea(st_rectangle(TILESIZE*3+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*_size, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 // body
                 for (int i=1; i<_size; i++) {
-                    graphLib.copyArea(st_rectangle(TILESIZE*2+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*i, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+                    graphLib.copyArea(st_rectangle(TILESIZE*2+framesize_w*_teleport_state, framesize_h*direction, TILESIZE, framesize_h), st_position(graphic_destiny.x+TILESIZE*i, graphic_destiny.y), graphic, &graphLib.gameScreen);
                 }
             }
         }
     }
 }
 
-void object::show_vertical_ray(int adjust_x, int adjust_y)
+void object::show_vertical_ray(int adjust_y)
 {
     st_position graphic_destiny;
 
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-    graphic_destiny.x = position.x - scroll_x;
+    graphic_destiny.x = position.x - map->getMapScrolling().x;
     graphic_destiny.y = position.y + map->getMapScrolling().y + +adjust_y;
 
-    if (draw_lib.get_object_graphic(_id) != NULL) {
+	graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
+
+    if (graphic != NULL) {
         if (_obj_frame_timer < timer.getTimer()) {
             _obj_frame_timer = timer.getTimer() + RAYFRAME_DELAY;
             _teleport_state = !_teleport_state;
         }
-        int dest_y = draw_lib.get_object_graphic(_id)->height-(TILESIZE*(_state+1));
+        int dest_y = graphic->height-(TILESIZE*(_state+1));
         //std::cout << "OBJECT::show_vertical_ray - dest_y: " << dest_y << ", _state: " << _state << std::endl;
-        graphLib.copyArea(st_rectangle(TILESIZE*_teleport_state, dest_y, TILESIZE, TILESIZE*(_state+1)), st_position(graphic_destiny.x, graphic_destiny.y-TILESIZE*(_state)), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+        graphLib.copyArea(st_rectangle(TILESIZE*_teleport_state, dest_y, TILESIZE, TILESIZE*(_state+1)), st_position(graphic_destiny.x, graphic_destiny.y-TILESIZE*(_state)), graphic, &graphLib.gameScreen);
     }
 }
 
-void object::show_horizontal_ray(int adjust_x, int adjust_y)
+void object::show_horizontal_ray(int adjust_y)
 {
     st_position graphic_destiny;
 
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-    graphic_destiny.x = position.x - scroll_x;
+    graphic_destiny.x = position.x - map->getMapScrolling().x;
     graphic_destiny.y = position.y + map->getMapScrolling().y + +adjust_y;
 
-    if (draw_lib.get_object_graphic(_id) != NULL) {
+    graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
+
+    if (graphic != NULL) {
         if (_obj_frame_timer < timer.getTimer()) {
             _obj_frame_timer = timer.getTimer() + RAYFRAME_DELAY;
             _teleport_state = !_teleport_state;
@@ -585,34 +579,34 @@ void object::show_horizontal_ray(int adjust_x, int adjust_y)
             int graphic_x = framesize_w - TILESIZE*(_state+1) + framesize_w*_teleport_state;
             int graphic_w = TILESIZE*(_state+1);
             int dest_x = graphic_destiny.x - graphic_w + TILESIZE;
-            graphLib.copyArea(st_rectangle(graphic_x, 0, graphic_w, TILESIZE), st_position(dest_x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(graphic_x, 0, graphic_w, TILESIZE), st_position(dest_x, graphic_destiny.y), graphic, &graphLib.gameScreen);
         } else {
             int graphic_x = framesize_w*_teleport_state;
             int graphic_w = TILESIZE*(_state+1);
-            graphLib.copyArea(st_rectangle(graphic_x, framesize_h, graphic_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+            graphLib.copyArea(st_rectangle(graphic_x, framesize_h, graphic_w, TILESIZE), st_position(graphic_destiny.x, graphic_destiny.y), graphic, &graphLib.gameScreen);
         }
     }
 }
 
-void object::show_track_platform(int adjust_x, int adjust_y)
+void object::show_track_platform(int adjust_y)
 {
     st_position graphic_destiny;
 
-    float scroll_x = (float)map->getMapScrolling().x;
-    if (adjust_x != 0) {
-        scroll_x = adjust_x;
-    }
-    graphic_destiny.x = position.x - scroll_x;
+    graphic_destiny.x = position.x - map->getMapScrolling().x;
     graphic_destiny.y = position.y + map->getMapScrolling().y + +adjust_y;
-    if (draw_lib.get_object_graphic(_id) != NULL) {
+
+    graphicsLib_gSurface* graphic = draw_lib.get_object_graphic(_id);
+
+    if (graphic != NULL) {
         //std::cout << "show_track_platform - _state: " << _state << std::endl;
-        graphLib.copyArea(st_rectangle(_state*framesize_w, 0, framesize_w, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), draw_lib.get_object_graphic(_id), &graphLib.gameScreen);
+        graphLib.copyArea(st_rectangle(_state*framesize_w, 0, framesize_w, framesize_h), st_position(graphic_destiny.x, graphic_destiny.y), graphic, &graphLib.gameScreen);
     }
 }
 
 
 void object::move(bool paused)
 {
+	graphicsLib_gSurface* graphic;
     if (paused == true && (type == OBJ_ITEM_FLY || type == OBJ_ITEM_JUMP)) {
         return;
     }
@@ -856,13 +850,16 @@ void object::move(bool paused)
             if (_expanding == true) {
                 _state++;
                 _timer_limit = timer.getTimer() + FRAMETIMER_RAY;
-                if (draw_lib.get_object_graphic(_id) != NULL) {
+
+                graphic = draw_lib.get_object_graphic(_id);
+
+                if (graphic != NULL) {
                     int limit = framesize_w/TILESIZE - 1;
                     if (type == OBJ_RAY_VERTICAL) {
                         limit = framesize_h/TILESIZE - 1;
                     }
                     if (_state >= limit) {
-                        //if (type == OBJ_RAY_HORIZONTAL) std::cout << "_state: " << _state << ", LIMIT: " << limit << ", framesize_h: " << framesize_h << std::endl;
+                        if (type == OBJ_RAY_HORIZONTAL) std::cout << "_state: " << _state << ", LIMIT: " << limit << ", framesize_h: " << framesize_h << std::endl;
                         _expanding = false;
                         _timer_limit = timer.getTimer() + DELAY_RAY;
                     }
@@ -945,6 +942,13 @@ void object::move(bool paused)
                     }
                 }
                 _timer_limit = timer.getTimer() + FRAMETIMER_DEATHRAY;
+                // checa por colisão
+		// /* Not used */
+                // int px = (position.x - _state * TILESIZE) / TILESIZE;
+                // if (direction == ANIM_DIRECTION_RIGHT) {
+                //     px = (position.x + _state*TILESIZE) / TILESIZE;
+                // }
+
             }
         }
     } else if (type == OBJ_TRACK_PLATFORM) {
@@ -983,7 +987,7 @@ void object::reset_animation()
 {
     frame = 0;
     _animation_finished = false;
-    _obj_frame_timer = timer.getTimer()+GameMediator::get_instance()->object_list.at(_id).frame_duration;
+    _obj_frame_timer = timer.getTimer()+game_data.objects[_id].frame_duration;
 }
 
 void object::stop()
@@ -1012,15 +1016,9 @@ st_position object::get_position() const
     if (type == OBJ_RAY_VERTICAL) {
         int y = position.y - _state*TILESIZE;
         return st_position(position.x, y);
-    } else if (type == OBJ_RAY_HORIZONTAL) {
-        int x = 0;
-        if (direction == ANIM_DIRECTION_LEFT) {
-            x = position.x - _state*TILESIZE;
-        } else {
-            x = position.x + TILESIZE;
-        }
-        int y = position.y + 4;
-        return st_position(x, y);
+    } else if (type == OBJ_RAY_HORIZONTAL && direction == ANIM_DIRECTION_LEFT) {
+        int x = position.x - _state*TILESIZE;
+        return st_position(x, position.y);
     } else if (type == OBJ_DEATHRAY_VERTICAL) {
         if (_expanding == false) {
             return st_position(position.x+TILESIZE/2, (_state - MAP_H)); // TILESIZE/2 is because of lava graphic not taking the whole width
@@ -1057,7 +1055,7 @@ st_size object::get_size()
         return st_size(framesize_w, h);
     } else if (type == OBJ_RAY_HORIZONTAL) {
         int w = _state*TILESIZE;
-        return st_size(w, framesize_h-4);
+        return st_size(w, framesize_h);
     } else if (type == OBJ_DEATHRAY_VERTICAL) {
         if (_expanding == true) {
             return st_size(framesize_w-TILESIZE, TILESIZE*_state); // -TILESIZE in width is because of lava graphic not taking the whole width
@@ -1078,12 +1076,12 @@ st_size object::get_size()
 // ********************************************************************************************** //
 //                                                                                                //
 // ********************************************************************************************** //
-Uint8 object::get_type() const
+short int object::get_type() const
 {
     return type;
 }
 
-Uint8 object::get_id() const
+short object::get_id() const
 {
     return _id;
 }
@@ -1091,7 +1089,7 @@ Uint8 object::get_id() const
 // ********************************************************************************************** //
 //                                                                                                //
 // ********************************************************************************************** //
-Uint8 object::get_direction() const
+int object::get_direction() const
 {
 	return direction;
 }
@@ -1129,11 +1127,13 @@ unsigned int object::get_timer() const
 
 bool object::finished() const
 {
+    //std::cout << ">> object::finished: " << _finished << std::endl;
 	return _finished;
 }
 
 void object::set_finished(bool is_finished)
 {
+    std::cout << ">> object::set_finished[" << name << "]: " << is_finished << std::endl;
 	_finished = is_finished;
 }
 
@@ -1215,7 +1215,7 @@ bool object::is_started() const
 
 bool object::is_on_screen()
 {
-    st_float_position scroll = map->getMapScrolling();
+    st_position scroll = map->getMapScrolling();
     // entre scroll.x-RES_W/2 e scroll.x+RES_W+RES_W/2
 
     //if (realPosition.x < -TILESIZE*2 || realPosition.x > (RES_W+TILESIZE*2)) {
@@ -1227,7 +1227,7 @@ bool object::is_on_screen()
 
 bool object::is_on_visible_screen()
 {
-    st_float_position scroll = map->getMapScrolling();
+    st_position scroll = map->getMapScrolling();
 
     if (abs((float)position.x) > scroll.x && abs((float)position.x) < scroll.x+RES_W) {
         return true;
@@ -1240,17 +1240,17 @@ st_position object::get_boss_teleporter_dest()
     return _boss_teleporter_dest;
 }
 
-Uint8 object::get_boss_teleport_map_dest()
+int object::get_boss_teleport_map_dest()
 {
     return _boss_teleporter_map_dest;
 }
 
-Uint8 object::get_obj_map_id()
+int object::get_obj_map_id()
 {
     return _obj_map_id;
 }
 
-void object::set_obj_map_id(Uint8 id)
+void object::set_obj_map_id(int id)
 {
     _obj_map_id = id;
 }

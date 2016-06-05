@@ -18,6 +18,8 @@
 
 extern int palleteX;
 extern int palleteY;
+extern Mediator *dataExchanger;
+
 
 struct pointElement{
    int palleteX, palleteY, type;
@@ -30,11 +32,13 @@ class EditorArea : public QWidget
 public:
   // methods
   EditorArea(QWidget *parent = 0);
+  void setInfoPalette(EditorTilePallete *temp_pallete);
 
   // variables
   QWidget *myParent;
 
 private:
+  void removeNpcFromMap(int, int);
 
   // variables
   int link_pos_x;
@@ -54,27 +58,22 @@ protected:
   int temp;
   int editor_selectedTileX, editor_selectedTileY;
   int tempX, tempY;
+  EditorTilePallete *my_pallete;
   int editor_selected_object_pos;
   int editor_selected_object_pos_map;
   void fill_area();
 
   int map_backup_n;
   bool mouse_released;
-  bool selection_started;
-
-  int selection_start_x;
-  int selection_start_y;
-  std::vector<std::vector<st_position> > selection_matrix;
-  int selection_current_x;
-  int selection_current_y;
-
-  QPixmap hard_mode_tile;
-  QPixmap easy_mode_tile;
 
 //signals:
 //     void save();
 
 public slots:
    void changeTile();
+   void saveGame(int game_n);
+   void addObjectToMap(int, int);
+
+
 
 };

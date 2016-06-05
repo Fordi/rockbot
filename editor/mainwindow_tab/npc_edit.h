@@ -33,6 +33,8 @@ private slots:
 
 	void on_npc_edit_tab_shieldtype_currentIndexChanged(int index);
 
+	void on_npc_edit_tab_iatype_currentIndexChanged(int index);
+
 	void on_npc_edit_tab_movespeed_valueChanged(int arg1);
 
 	void on_npc_edit_tab_range_valueChanged(int arg1);
@@ -67,6 +69,12 @@ private slots:
 
 	void on_sprite_colision_h_valueChanged(int arg1);
 
+    void on_projectile1_comboBox_currentIndexChanged(int index);
+
+    void on_projectile2_comboBox_currentIndexChanged(int index);
+
+	void on_ai_chain_currentIndexChanged(int index);
+
 	void on_isBoss_checkBox_toggled(bool checked);
 
     void on_sprite_pos_x_valueChanged(int arg1);
@@ -89,21 +97,8 @@ private slots:
 
     void on_AddFrame_Button_clicked();
 
-    void on_addEnemy_pushButton_clicked();
-
-    void on_isAttackFrame_checkBox_toggled(bool checked);
-
-    void on_projectileOriginX_spinBox_valueChanged(int arg1);
-
-    void on_projectileOriginY_spinBox_valueChanged(int arg1);
-
-    void on_pushButton_2_clicked();
-
 private:
 	void fill_data();
-
-    // used to prevent creating an enemy with no STAND frame
-    void add_frame_one();
 
 public slots:
 	void set_npc_frame();

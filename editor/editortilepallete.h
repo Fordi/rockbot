@@ -13,6 +13,8 @@
 
 extern int palleteX;
 extern int palleteY;
+extern Mediator *dataExchanger;
+
 
 class EditorTilePallete : public QWidget
 {
@@ -23,6 +25,7 @@ public:
     EditorTilePallete(QWidget *parent = 0);
     int selectedTileX, selectedTileY;
     QString getPallete();
+    QString currentPallete;
 
   // variables
   QWidget *myParent;

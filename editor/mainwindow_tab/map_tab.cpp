@@ -2,22 +2,19 @@
 #include "ui_map_tab.h"
 #include "common.h"
 
-#include <QColorDialog>
+extern CURRENT_FILE_FORMAT::file_game game_data;
+extern CURRENT_FILE_FORMAT::file_stages stage_data;
 
 map_tab::map_tab(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::map_tab),
     _data_loading(true)
 {
+    std::cout << ">>>>>>>>>>>>> DEBUG#1 <<<<<<<<<<<<<<<" << std::endl;
     ui->setupUi(this);
-
     fill_data();
-
-    ui->editTile_button->setChecked(true);
-    ui->editModeNormal_button->setChecked(true);
-
-
     ui->editArea->repaint();
+    QObject::connect(ui->pallete, SIGNAL(signalPalleteChanged()), ui->editArea, SLOT(repaint()));
 }
 
 map_tab::~map_tab()
@@ -27,8 +24,12 @@ map_tab::~map_tab()
 
 void map_tab::reload()
 {
-    ui->animTilePaletteWidget->reload();
     fill_data();
+}
+
+void map_tab::save()
+{
+    ui->editArea->saveGame(dataExchanger->currentGame);
 }
 
 void map_tab::set_current_box(short n)
@@ -42,11 +43,11 @@ void map_tab::update_edit_area()
     ui->editArea->repaint();
 }
 
-void map_tab::on_color_selected1(QColor color)
+void map_tab::pick_bg_color()
 {
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.r = color.red();
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.g = color.green();
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.b = color.blue();
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.r = dataExchanger->colormap[dataExchanger->picked_color_n].r;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.g = dataExchanger->colormap[dataExchanger->picked_color_n].g;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.b = dataExchanger->colormap[dataExchanger->picked_color_n].b;
     fill_background_list();
     update_edit_area();
 }
@@ -54,79 +55,40 @@ void map_tab::on_color_selected1(QColor color)
 
 void map_tab::fill_data()
 {
-    if (FILEPATH.length() == 0) {
-        return;
-    }
     _data_loading = true;
-    fill_anim_tiles_data();
     common::fill_stages_combo(ui->stageListCombo);
     common::fill_map_list_combo(ui->mapListCombo);
     common::fill_npc_listwidget(ui->npc_listWidget);
     common::fill_object_listWidget(ui->objectListWidget);
     fill_background_list();
-    ui->npc_direction_combo->setCurrentIndex(Mediator::get_instance()->npc_direction);
-    ui->object_direction_combo->setCurrentIndex(Mediator::get_instance()->object_direction);
-
-    common::fill_files_combo("images/tilesets", ui->stageTileset_comboBox);
-    QString tileset(Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].tileset_filename);
-    if (tileset.length() > 0) {
-        ui->stageTileset_comboBox->setCurrentIndex(ui->stageTileset_comboBox->findText(tileset));
-        Mediator::get_instance()->setPallete(tileset.toStdString());
-    } else {
-        ui->stageTileset_comboBox->setCurrentIndex(ui->stageTileset_comboBox->findText(QString("default.png")));
-        Mediator::get_instance()->setPallete("default.png");
-    }
-
-
-
+    ui->npc_direction_combo->setCurrentIndex(dataExchanger->npc_direction);
+    ui->object_direction_combo->setCurrentIndex(dataExchanger->object_direction);
     _data_loading = false;
 }
 
 void map_tab::fill_background_list()
 {
-    QString bg1_filename(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].filename);
-    QString bg2_filename(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].filename);
-    common::fill_files_combo("images/map_backgrounds", ui->bg1_filename);
-    common::fill_files_combo("images/map_backgrounds", ui->bg2_filename);
+    QString bg1_filename(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].filename);
+    QString bg2_filename(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].filename);
+    common::fill_files_combo("data/images/map_backgrounds", ui->bg1_filename);
+    common::fill_files_combo("data/images/map_backgrounds", ui->bg2_filename);
     ui->bg1_filename->setCurrentIndex(ui->bg1_filename->findText(bg1_filename));
     ui->bg2_filename->setCurrentIndex(ui->bg2_filename->findText(bg2_filename));
-    ui->bg1_y_pos->setValue(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].adjust_y);
-    ui->bg2_y_pos->setValue(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].adjust_y);
+    ui->bg1_y_pos->setValue(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].adjust_y);
+    ui->bg2_y_pos->setValue(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].adjust_y);
 
-    float bg1_speed = (float)Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].speed/10;
+    float bg1_speed = (float)stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].speed/10;
     ui->bg1_speed->setValue(bg1_speed);
-    float bg2_speed = (float)Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].speed/10;
+    float bg2_speed = (float)stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].speed/10;
     ui->bg2_speed->setValue(bg2_speed);
     std::stringstream ss;
     ss.str(std::string());
-    ss << "background-color: rgb(" << Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.r << ", " << Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.g << ", " << Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].background_color.b << ")";
+    ss << "background-color: rgb(" << stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.r << ", " << stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.g << ", " << stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].background_color.b << ")";
     ui->bg_color_pick->setStyleSheet(ss.str().c_str());
-
-    ui->mapGFX_comboBox->setCurrentIndex(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].gfx);
-
-    ui->autoScrollBG1_mode->setCurrentIndex(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].auto_scroll);
-    ui->autoScrollBG2_mode->setCurrentIndex(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].auto_scroll);
-
-    QString tileset(Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].tileset_filename);
-    if (tileset.length() > 0) {
-        ui->stageTileset_comboBox->setCurrentIndex(ui->stageTileset_comboBox->findText(tileset));
-        Mediator::get_instance()->setPallete(tileset.toStdString());
-    } else {
-        ui->stageTileset_comboBox->setCurrentIndex(-1);
+    for (int i=0; i<10; i++) {
+        ui->current_anim_tile_combobox->addItem(QString::number(i));
     }
-    CURRENT_FILE_FORMAT::file_stage temp_stage = Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage];
-    bool autoscroll_checked = (bool)temp_stage.autoscroll[Mediator::get_instance()->currentMap];
-    if (autoscroll_checked != true) {
-        autoscroll_checked = false;
-    }
-    ui->mapAutoScroll_checkBox->setChecked(autoscroll_checked);
-
-
-
-}
-
-void map_tab::fill_anim_tiles_data()
-{
+    common::fill_files_combo("data/images/tilesets/anim", ui->anim_tile_graphic_combobox);
 }
 
 void map_tab::on_stageListCombo_currentIndexChanged(int index)
@@ -134,27 +96,13 @@ void map_tab::on_stageListCombo_currentIndexChanged(int index)
     if (_data_loading == true) {
         return;
     }
-    bool data_loading_before = _data_loading;
     _data_loading = true;
-    Mediator::get_instance()->currentMap = 0;
-    Mediator::get_instance()->currentStage = index;
+    dataExchanger->currentMap = 0;
+    dataExchanger->currentStage = index;
     ui->mapListCombo->setCurrentIndex(0);
     fill_background_list();
-
-    QString tileset(Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].tileset_filename);
-    if (tileset.length() > 0) {
-        ui->stageTileset_comboBox->setCurrentIndex(ui->stageTileset_comboBox->findText(tileset));
-        Mediator::get_instance()->setPallete(tileset.toStdString());
-    } else {
-        ui->stageTileset_comboBox->setCurrentIndex(ui->stageTileset_comboBox->findText(QString("default.png")));
-        Mediator::get_instance()->setPallete("default.png");
-    }
-
-    ui->mapGFX_comboBox->setCurrentIndex(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].gfx);
-
     ui->editArea->repaint();
-    ui->pallete->repaint();
-    _data_loading = data_loading_before;
+    _data_loading = false;
 }
 
 void map_tab::on_mapListCombo_currentIndexChanged(int index)
@@ -162,17 +110,16 @@ void map_tab::on_mapListCombo_currentIndexChanged(int index)
     if (index < 0) {
         return;
     }
-    bool data_loading_before = _data_loading;
     _data_loading = true;
-    Mediator::get_instance()->currentMap = index;
+    dataExchanger->currentMap = index;
     fill_background_list();
-    _data_loading = data_loading_before;
+    _data_loading = false;
     ui->editArea->repaint();
 }
 
 void map_tab::on_spinBox_valueChanged(int arg1)
 {
-    Mediator::get_instance()->zoom = arg1;
+    dataExchanger->zoom = arg1;
     ui->editArea->repaint();
 }
 
@@ -182,60 +129,60 @@ void map_tab::on_comboBox_currentIndexChanged(int index)
     if (index == 1) {
         value = 3;
     }
-    Mediator::get_instance()->layerLevel = value;
+    dataExchanger->layerLevel = value;
     ui->editArea->repaint();
 }
 
 void map_tab::on_listWidget_2_currentRowChanged(int currentRow)
 {
-    Mediator::get_instance()->terrainType = currentRow+1;
+    dataExchanger->terrainType = currentRow+1;
 }
 
 void map_tab::on_npc_listWidget_currentRowChanged(int currentRow)
 {
-    Mediator::get_instance()->selectedNPC = currentRow;
+    dataExchanger->selectedNPC = currentRow;
 }
 
 void map_tab::on_npc_direction_combo_currentIndexChanged(int index)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->npc_direction = index;
+    dataExchanger->npc_direction = index;
 }
 
 void map_tab::on_link_orientation_combobox_currentIndexChanged(int index)
 {
-    Mediator::get_instance()->link_type = index;
+    dataExchanger->link_type = index;
 }
 
 void map_tab::on_link_bidi_checkbox_toggled(bool checked)
 {
-    Mediator::get_instance()->link_bidi = checked;
+    dataExchanger->link_bidi = checked;
 }
 
 void map_tab::on_link_isdoor_checkbox_toggled(bool checked)
 {
-    Mediator::get_instance()->link_is_door = checked;
+    dataExchanger->link_is_door = checked;
 }
 
 void map_tab::on_objectListWidget_currentRowChanged(int currentRow)
 {
-    Mediator::get_instance()->selectedNPC = currentRow;
+    dataExchanger->selectedNPC = currentRow;
 }
 
 void map_tab::on_bg_color_pick_clicked()
 {
-    QColorDialog *colorDialog = new QColorDialog(this);
-    QObject::connect(colorDialog, SIGNAL(colorSelected(QColor)), this, SLOT(on_color_selected1(QColor)));
-    colorDialog->show();
+    QDialog *color_pick = new dialog_pick_color;
+    color_pick->show();
+    QObject::connect(color_pick, SIGNAL(accepted()), this, SLOT(pick_bg_color()));
 }
 
 void map_tab::on_bg1_filename_currentIndexChanged(const QString &arg1)
 {
     if (_data_loading == true) { return; }
     if (arg1.toStdString() == std::string("None")) {
-        Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].filename[0] = '\0';
+        stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].filename[0] = '\0';
     } else {
-        sprintf(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].filename, "%s", arg1.toStdString().c_str());
+        sprintf(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].filename, "%s", arg1.toStdString().c_str());
     }
     update_edit_area();
 }
@@ -243,15 +190,15 @@ void map_tab::on_bg1_filename_currentIndexChanged(const QString &arg1)
 void map_tab::on_bg1_speed_valueChanged(double arg1)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].speed = arg1*10;
-    std::cout << "#3 *** on_bg1_speed_valueChanged - setvalue: " << arg1 << ", bg1.speed: " << (int)Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].speed << std::endl;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].speed = arg1*10;
+    std::cout << "#3 *** on_bg1_speed_valueChanged - setvalue: " << arg1 << ", bg1.speed: " << (int)stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].speed << std::endl;
     update_edit_area();
 }
 
 void map_tab::on_bg1_y_pos_valueChanged(int arg1)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].adjust_y = arg1;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[0].adjust_y = arg1;
     update_edit_area();
 }
 
@@ -259,9 +206,9 @@ void map_tab::on_bg2_filename_currentIndexChanged(const QString &arg1)
 {
     if (_data_loading == true) { return; }
     if (arg1.toStdString() == std::string("None")) {
-        Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].filename[0] = '\0';
+        stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].filename[0] = '\0';
     } else {
-        sprintf(Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].filename, "%s", arg1.toStdString().c_str());
+        sprintf(stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].filename, "%s", arg1.toStdString().c_str());
     }
 
 }
@@ -269,301 +216,62 @@ void map_tab::on_bg2_filename_currentIndexChanged(const QString &arg1)
 void map_tab::on_bg2_speed_valueChanged(double arg1)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].speed = arg1*10;
-    std::cout << ">> on_bg2_speed_valueChanged, value: " << (int)Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].speed << std::endl;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].speed = arg1*10;
+    std::cout << ">> on_bg2_speed_valueChanged, value: " << (int)stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].speed << std::endl;
     update_edit_area();
 }
 
 void map_tab::on_bg2_y_pos_valueChanged(int arg1)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].adjust_y = arg1;
+    stage_data.stages[dataExchanger->currentStage].maps[dataExchanger->currentMap].backgrounds[1].adjust_y = arg1;
     update_edit_area();
 }
 
 void map_tab::on_checkBox_toggled(bool checked)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->show_background_color = checked;
+    dataExchanger->show_background_color = checked;
     update_edit_area();
 }
 
 void map_tab::on_checkBox_2_toggled(bool checked)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->show_bg1 = checked;
+    dataExchanger->show_bg1 = checked;
     update_edit_area();
 }
 
 void map_tab::on_checkBox_3_toggled(bool checked)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->show_bg2 = checked;
+    dataExchanger->show_bg2 = checked;
     update_edit_area();
 }
 
 
+void map_tab::on_current_anim_tile_combobox_currentIndexChanged(int index)
+{
+    if (_data_loading == true) { return; }
+    dataExchanger->selectedAnimTileset = index;
+    ui->anim_tile_graphic_combobox->setCurrentIndex(ui->anim_tile_graphic_combobox->findText(game_data.anim_tiles[index].filename));
+    ui->anim_tile_delay_spinbox->setValue(game_data.anim_tiles[index].delay);
+}
+
+void map_tab::on_anim_tile_graphic_combobox_currentIndexChanged(const QString &arg1)
+{
+    if (_data_loading == true) { return; }
+    sprintf(game_data.anim_tiles[dataExchanger->selectedAnimTileset].filename, "%s", arg1.toStdString().c_str());
+}
+
+void map_tab::on_anim_tile_delay_spinbox_valueChanged(int arg1)
+{
+    if (_data_loading == true) { return; }
+    game_data.anim_tiles[dataExchanger->selectedAnimTileset].delay = arg1;
+}
 
 void map_tab::on_object_direction_combo_currentIndexChanged(int index)
 {
     if (_data_loading == true) { return; }
-    Mediator::get_instance()->object_direction = index;
-}
-
-void map_tab::on_editTile_button_clicked()
-{
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editTile_button->setChecked(true);
-    ui->addAnimTile_toolButton->setChecked(false);
-    ui->editModeNormal_button->setEnabled(true);
-
-    //ui->editModeNormal_button->setEnabled(true);
-    ui->editModeLock_button->setEnabled(true);
-    ui->editModeErase_button->setEnabled(true);
-
-    set_current_box(1);
-    Mediator::get_instance()->editMode = EDITMODE_NORMAL;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-
-}
-
-void map_tab::on_editObject_button_clicked()
-{
-    ui->editTile_button->setChecked(false);
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editObject_button->setChecked(true);
-    ui->addAnimTile_toolButton->setChecked(false);
-    ui->editModeNormal_button->setEnabled(true);
-
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(true);
-
-    set_current_box(5);
-    Mediator::get_instance()->editMode = EDITMODE_OBJECT;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-    update_edit_area();
-}
-
-void map_tab::on_editLink_button_clicked()
-{
-    ui->editTile_button->setChecked(false);
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(true);
-    ui->addAnimTile_toolButton->setChecked(false);
-    ui->editModeNormal_button->setEnabled(true);
-
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(true);
-
-    set_current_box(4);
-    Mediator::get_instance()->editMode = EDITMODE_LINK;
-    Mediator::get_instance()->editTool = EDITMODE_LINK;
-    update_edit_area();
-}
-
-void map_tab::on_editNpc_button_clicked()
-{
-    ui->editTile_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editNpc_button->setChecked(true);
-    ui->addAnimTile_toolButton->setChecked(false);
-    ui->editModeNormal_button->setEnabled(true);
-
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(true);
-
-    set_current_box(3);
-    Mediator::get_instance()->editMode = EDITMODE_NPC;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-}
-
-void map_tab::on_editSetSubBoss_button_clicked()
-{
-    ui->editTile_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(true);
-    ui->editModeNormal_button->setEnabled(true);
-
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(false);
-
-    set_current_box(3);
-    Mediator::get_instance()->editMode = EDITMODE_SET_SUBBOSS;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-
-}
-
-void map_tab::on_editSetBoss_button_clicked()
-{
-    ui->editTile_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editNpc_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(true);
-    ui->editModeNormal_button->setEnabled(true);
-
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(false);
-
-    set_current_box(3);
-    Mediator::get_instance()->editMode = EDITMODE_SET_BOSS;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-
-}
-
-void map_tab::on_editModeNormal_button_clicked()
-{
-    ui->editModeNormal_button->setChecked(true);
-    ui->editModeLock_button->setChecked(false);
-    ui->editModeErase_button->setChecked(false);
-
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-    if (ui->editTile_button->isChecked()) {
-        set_current_box(1);
-    } else if (ui->editNpc_button->isChecked()) {
-        set_current_box(3);
-    } else if (ui->editObject_button->isChecked()) {
-        set_current_box(5);
-    } else if (ui->editLink_button->isChecked()) {
-        set_current_box(4);
-    }
-    update_edit_area();
-
-}
-
-void map_tab::on_editModeLock_button_clicked()
-{
-    ui->editModeNormal_button->setChecked(false);
-    ui->editModeLock_button->setChecked(true);
-    ui->editModeErase_button->setChecked(false);
-
-    set_current_box(2);
-    Mediator::get_instance()->editTool = EDITMODE_LOCK;
-    update_edit_area();
-}
-
-void map_tab::on_editModeErase_button_clicked()
-{
-    ui->editModeNormal_button->setChecked(false);
-    ui->editModeLock_button->setChecked(false);
-    ui->editModeErase_button->setChecked(true);
-
-    Mediator::get_instance()->editTool = EDITMODE_ERASER;
-    update_edit_area();
-
-}
-
-
-void map_tab::on_stageTileset_comboBox_currentIndexChanged(const QString &arg1)
-{
-    if (_data_loading == true) { return; }
-    if (arg1.length() == 0) { // reset to default
-        Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].tileset_filename[0] = '\0';
-        Mediator::get_instance()->setPallete(std::string("default.png"));
-    } else {
-        sprintf(Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].tileset_filename, "%s", arg1.toStdString().c_str());
-        Mediator::get_instance()->setPallete(arg1.toStdString());
-    }
-    ui->pallete->repaint();
-    ui->editArea->repaint();
-}
-
-void map_tab::on_mapGFX_comboBox_currentIndexChanged(int index)
-{
-    if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].gfx = index;
-}
-
-void map_tab::on_autoScrollBG1_mode_currentIndexChanged(int index)
-{
-    if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[0].auto_scroll = index;
-}
-
-void map_tab::on_autoScrollBG2_mode_currentIndexChanged(int index)
-{
-    if (_data_loading == true) { return; }
-    Mediator::get_instance()->maps_data[Mediator::get_instance()->currentStage][Mediator::get_instance()->currentMap].backgrounds[1].auto_scroll = index;
-}
-
-void map_tab::on_addAnimTile_toolButton_clicked()
-{
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editTile_button->setChecked(false);
-    ui->addAnimTile_toolButton->setChecked(true);
-    ui->editModeNormal_button->setEnabled(true);
-
-    //ui->editModeNormal_button->setEnabled(true);
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(true);
-
-    set_current_box(6);
-    Mediator::get_instance()->editMode = EDITMODE_ANIM_TILE;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-
-}
-
-void map_tab::on_toolButton_clicked()
-{
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editTile_button->setChecked(false);
-    ui->addAnimTile_toolButton->setChecked(false);
-
-    ui->editModeNormal_button->setEnabled(false);
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(false);
-
-    set_current_box(1);
-    Mediator::get_instance()->editMode = EDITMODE_SELECT;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-}
-
-void map_tab::on_paste_toolButton_clicked()
-{
-    ui->editNpc_button->setChecked(false);
-    ui->editSetSubBoss_button->setChecked(false);
-    ui->editSetBoss_button->setChecked(false);
-    ui->editObject_button->setChecked(false);
-    ui->editLink_button->setChecked(false);
-    ui->editTile_button->setChecked(false);
-    ui->addAnimTile_toolButton->setChecked(false);
-
-    ui->editModeNormal_button->setEnabled(false);
-    ui->editModeLock_button->setEnabled(false);
-    ui->editModeErase_button->setEnabled(false);
-
-    set_current_box(1);
-    Mediator::get_instance()->editMode = EDITMODE_PASTE;
-    Mediator::get_instance()->editTool = EDITMODE_NORMAL;
-}
-
-void map_tab::on_mapAutoScroll_checkBox_clicked(bool checked)
-{
-    if (_data_loading == true) { return; }
-    Mediator::get_instance()->stage_data.stages[Mediator::get_instance()->currentStage].autoscroll[Mediator::get_instance()->currentMap] = checked;
+    dataExchanger->object_direction = index;
 }

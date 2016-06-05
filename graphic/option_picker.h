@@ -20,10 +20,13 @@ public:
  * @param pos
  * @param options
  */
-    option_picker(bool draw_border, st_position pos, std::vector<st_menu_option> options, bool show_return);
     option_picker(bool draw_border, st_position pos, std::vector<std::string> options, bool show_return);
-    void change_option_label(int n, std::string label);
-    Sint8 pick();
+    /**
+     * @brief
+     *
+     * @return int
+     */
+    int pick();
 
 
     /**
@@ -31,7 +34,7 @@ public:
      *
      * @param pick_pos
      */
-    void set_picker_initial_pos(Uint8 pick_pos);
+    void set_picker_initial_pos(int pick_pos);
     /**
      * @brief
      *
@@ -41,11 +44,10 @@ public:
 
 private:
     st_position _position; /**< TODO */
-    std::vector<st_menu_option> _items; /**< TODO */
+    std::vector<std::string> _items; /**< TODO */
     bool _draw_border; /**< TODO */
-    Uint8 _pick_pos; /**< TODO */
+    short _pick_pos; /**< TODO */
     bool _show_return;
-    int text_max_len;
 };
 
 #endif // OPTION_PICKER_H

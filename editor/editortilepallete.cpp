@@ -1,29 +1,34 @@
 #include "editortilepallete.h"
 #include <stdio.h>
 
+extern Mediator dataExchange;
+extern char EDITOR_FILEPATH[512];
+
 EditorTilePallete::EditorTilePallete(QWidget *parent) : QWidget(parent) {
    printf("DEBUG.EditorTilePallete - constructor\n");
    selectedTileX=0;
    selectedTileY=0;
+   currentPallete.clear();
    myParent = parent;
    parent->resize(QSize(250, 200));
    this->show();
 }
 
 void EditorTilePallete::paintEvent(QPaintEvent *) {
+   QString *filename;
    QPixmap *image;
-
-   QString filename;
-   if (Mediator::get_instance()->getPallete().length() < 1) {
-        filename = QString(FILEPATH.c_str()) + QString("/images/tilesets/") + QString("default.png");
-   } else {
-        filename = QString(FILEPATH.c_str()) + QString("/images/tilesets/") + QString(Mediator::get_instance()->getPallete().c_str());
-   }
-
+   //printf("DEBUG.EditorTilePallete - paintEvent, selectedTileX: %d, selectedTileY: %d\n", selectedTileX, selectedTileY);
    QPainter painter(this);
-   image = new QPixmap(filename);
+   if (currentPallete.length() <= 0) {
+      std::string tempstr = dataExchanger->getPallete();
+      filename = new QString(tempstr.c_str());
+   } else {
+	  filename = new QString(QString(EDITOR_FILEPATH)+"/data/images/tilesets/");
+      filename->append(currentPallete);
+   }
+   image = new QPixmap(*filename);
    if (image->isNull()) {
-      printf("DEBUG.Tile - Could not load image file '%s'\n", qPrintable(filename));
+      printf("DEBUG.Tile - Could not load image file '%s'\n", qPrintable(*filename));
    }
    QRectF target(QPoint(0, 0), image->size());
    QRectF source(QPoint(0, 0), image->size());
@@ -38,6 +43,8 @@ void EditorTilePallete::paintEvent(QPaintEvent *) {
 
 void EditorTilePallete::changeTileSet(const QString &tileset) {
    printf("mudando paleta para %s\n", qPrintable(tileset));
+   currentPallete=QString();
+   currentPallete.append(tileset);
    signalPalleteChanged();
    repaint();
 }
@@ -46,8 +53,8 @@ void EditorTilePallete::mousePressEvent(QMouseEvent *event) {
    QPoint pnt = event->pos();
    selectedTileX = pnt.x()/16;
    selectedTileY = pnt.y()/16;
-   Mediator::get_instance()->setPalleteX(selectedTileX);
-   Mediator::get_instance()->setPalleteY(selectedTileY);
+   dataExchanger->setPalleteX(selectedTileX);
+   dataExchanger->setPalleteY(selectedTileY);
    printf("DEBUG.EditorTilePallete::mousePressEvent - PalleteX: %d, palleteY: %d\n", selectedTileX, selectedTileY);
    repaint();
 }
@@ -56,9 +63,7 @@ void EditorTilePallete::mousePressEvent(QMouseEvent *event) {
 
 
 QString EditorTilePallete::getPallete() {
-    QString res(Mediator::get_instance()->getPallete().c_str());
-    std::cout << "EditorTilePallete::getPallete - res: " << res.toStdString() << std::endl;
-    return res;
+    return QString(dataExchanger->getPallete().c_str());
 }
 
 //void EditorTilePallete::signalPalleteChanged() {

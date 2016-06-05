@@ -14,47 +14,53 @@
 class stage
 {
 public:
-    stage(int, classPlayer *set_player_ref);
+	stage(int, std::vector<classPlayer> &set_player_list);
     /**
      * @brief
      *
      */
     ~stage();
-    int get_number();
+     /**
+     * @brief
+     * @return classMap
+     */
     void setNumber(int);
-
+    /**
+     * @brief
+     * @param int
+     */
     void loadStage();
     /**
      * @brief
      *
      */
-    void showStage();
+    void showStage() const;
     /**
      * @brief
      *
      * @param st_position
      * @return int
      */
-    Uint8 getMapPointLock(struct st_position);
+    int getMapPointLock(struct st_position);
     /**
      * @brief
      *
      * @param pos
      * @param check_lock
      */
-    void changeScrolling(st_float_position pos, bool check_lock=true);
+    void changeScrolling(st_position pos, bool check_lock=true) const;
     /**
      * @brief
      *
      * @return st_position
      */
-    st_float_position getMapScrolling();
+    st_position getMapScrolling() const;
     /**
      * @brief
      *
      * @param scroll_y
      */
-    void showAbove(int scroll_y=0);
+    void showAbove(int scroll_y=0) const;
     /**
      * @brief
      *
@@ -66,7 +72,7 @@ public:
      *
      * @return int
      */
-    Uint8 get_current_map_number();
+    int get_current_map_number() const;
     /**
      * @brief
      *
@@ -78,13 +84,13 @@ public:
      *
      * @return short
      */
-    Uint8 get_current_map_n();
+    short int get_current_map_n() const;
     /**
      * @brief
      *
      * @param pos
      */
-    void set_scrolling(st_float_position pos);
+    void set_scrolling(st_position pos) const;
 
     void reset_scrolling();
 
@@ -94,7 +100,7 @@ public:
      * @param move_x
      * @param move_y
      */
-    void move_map(const short int move_x, const short int move_y);
+    void move_map(const short int move_x, const short int move_y) const;
     /**
      * @brief
      *
@@ -112,76 +118,93 @@ public:
      * @brief
      *
      */
-    void reset_current_map_objects();
+    void reset_current_map_objects() const;
     /**
      * @brief
      *
      */
-    void reset_stage_objects();
+    void reset_stage_objects() const;
+    /**
+     * @brief
+     *
+     */
+    void clean_stage();
+    /**
+     * @brief
+     *
+     * @param is_close
+     * @param nTiles
+     * @param tileX
+     * @param player_number
+     */
+    void redraw_boss_door(bool is_close, int nTiles, int tileX, int tileY, short player_number) const;
+    /**
+     * @brief
+     *
+     */
+    void move_npcs() const;
+    /**
+     * @brief
+     *
+     */
+    void show_npcs() const;
+    /**
+     * @brief
+     *
+     */
+    void move_objects(bool paused=false) const;
 
-    void redraw_boss_door(bool is_close, int nTiles, int tileX, int tileY, short player_number);
-    /**
-     * @brief
-     *
-     */
-    void move_npcs();
-    /**
-     * @brief
-     *
-     */
-    void show_npcs();
-    /**
-     * @brief
-     *
-     */
-    void move_objects(bool paused=false);
 
-
-    void show_objects(int adjust=0);
+    void show_objects(int adjust=0) const;
     /**
      * @brief
      *
      * @return bool
      */
-    bool boss_hit_ground();
+    bool boss_hit_ground() const;
     /**
      * @brief
      *
      */
-    void reset_stage_maps();
+    void reset_stage_maps() const;
     /**
      * @brief
      *
      */
-    void reset_stage_npcs();
+    void reset_stage_npcs() const;
     /**
      * @brief
      *
      * @param x_pos
      * @return int
      */
-    int get_first_lock_on_left(int x_pos);
+    int get_first_lock_on_left(int x_pos) const;
 
-    int get_teleport_minimal_y_tile(int xpos);
+    int get_teleport_minimal_y(int xpos) const;
 
-    void reset_objects_timers();
+    void reset_objects_timers() const;
 
     bool subboss_alive_on_left(short tileX);
 
     void activate_final_boss_teleporter();
 
-private:
-    void check_map_effect();
-
 
 public:
-    classMap maps[PRELOAD_MAP_N];
+    classMap* maps[PRELOAD_MAP_N]; /**< TODO */
 
 private:
-    Sint8 number;
-    Uint8 currentMap;
-    classPlayer* _player_ref;
-    unsigned int autoscroll_timer;
+    int number; /**< TODO */
+    int currentMap; /**< TODO */
+    std::vector<classPlayer*> _player_list; /**< TODO */
+
+    int _color1_timer; /**< TODO */
+    int _color2_timer; /**< TODO */
+    int _color3_timer; /**< TODO */
+
+    int _color1_n; /**< TODO */
+    int _color2_n; /**< TODO */
+    int _color3_n; /**< TODO */
+
 };
 
 #endif // STAGE_H

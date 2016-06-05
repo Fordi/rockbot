@@ -10,33 +10,22 @@ QT       -= core
 QT       -= gui
 
 
-CONFIG += linux
-#CONFIG += win32
 #CONFIG += android
+CONFIG += linux
+#CONFIG += macosx
+#CONFIG += win32
 #CONFIG += ps2
 #CONFIG += dingux
 #CONFIG += open_pandora
 #CONFIG += wii
 #CONFIG += dreamcast
-#CONFIG += dingoo_native
-#CONFIG += macosx
+
 
 # NOTE for android build on 64: /usr/share/qt4/mkspecs/default/qmake.conf
 
-#DEFINESLIST = -DDEMO_VERSION
-
-
-# dolphin-emu -d -e ~/Desenvolvimento/rockbot/build/rockbot.elf
-
-
-# sudo mount -o defaults,umask=000 ~/.local/share/dolphin-emu/Wii/sd.raw /media/sdcard
-# cp -r ~/Desenvolvimento/rockbot/build/games/Rockbot2 /media/sdcard/Rockbot2
-# cp -r ~/Desenvolvimento/rockbot/build/fonts /media/sdcard
-# cp -r ~/Desenvolvimento/rockbot/build/shared /media/sdcard
-# sudo umount /media/sdcard
-
 CONFIG += console
 CONFIG -= app_bundle
+
 TARGET = rockbot
 
 linux {
@@ -47,8 +36,8 @@ linux {
                 -I. \
                 -I./include \
                 -L/usr/lib
-        QMAKE_CCFLAGS += -DLINUX -DPC -Wno-reorder -Wno-ignored-qualifiers -fpermissive
-        QMAKE_CXXFLAGS += -DLINUX -DPC -Wno-reorder -Wno-ignored-qualifiers -fpermissive
+        QMAKE_CCFLAGS += -DLINUX -DPC -Wno-reorder -Wno-ignored-qualifiers
+        QMAKE_CXXFLAGS += -DLINUX -DPC -Wno-reorder -Wno-ignored-qualifiers
 
 }
 
@@ -135,7 +124,7 @@ android {
 	-lc -lm -lGLESv1_CM -ldl -llog -lz \
 	-L/usr/lib \
         -L$${ANDROIDSDK}/rockbot_build/android-ndk-r8e/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi \
-        -lgnustl_static -no-canonical-prefixes -Wl,--no-undefined -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
+	-lgnustl_static -no-canonical-prefixes -Wl,--no-undefined -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
         -lsupc++  -lsdl-1.2
 
         QMAKE_POST_LINK += $${ANDROIDNDK}/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip --strip-all libapplication.so
@@ -158,7 +147,7 @@ win32 {
                 -L/usr/lib
                 QMAKE_CCFLAGS += -DWIN32 -DPC
                 QMAKE_CXXFLAGS += -DWIN32 -DPC -IC:\Qt\5.5\mingw492_32\ -IC:\Qt\5.5\mingw492_32\include -LC:\Qt\5.5\mingw492_32\lib
-                CONFIG -= console
+                #CONFIG -= console
 }
 
 
@@ -170,7 +159,7 @@ dingux {
 	QMAKE_CXX = $(OPENDINGUX_TOOLCHAIN_PREFIX)bin/mipsel-linux-g++
 	QMAKE_LINK = $(OPENDINGUX_TOOLCHAIN_PREFIX)bin/mipsel-linux-g++
 
-        QMAKE_CFLAGS += -pipe -g -Wall -W -D_REENTRANT -DDINGUX -DHANDHELD
+	QMAKE_CFLAGS += -pipe -g -Wall -W -D_REENTRANT -DDINGUX -DHANDHELD
 	QMAKE_CXXFLAGS += -I$(OPENDINGUX_TOOLCHAIN_PREFIX)/include -pipe -g -Wall -W -D_REENTRANT -DDINGUX -DHANDHELD
 
 	LIBS = $(SUBLIBS) -L$(OPENDINGUX_TOOLCHAIN_PREFIX)lib -lSDL_mixer -lSDL_image -lSDL_ttf `$(OPENDINGUX_TOOLCHAIN_PREFIX)/bin/sdl-config --libs` -lpthread
@@ -181,22 +170,6 @@ dingux {
 }
 
 
-dingoo_native {
-        QMAKE_CC = $(MIPSTOOLS)/bin/mipsel-linux-gcc
-        QMAKE_CXX = $(MIPSTOOLS)/bin/mipsel-linux-g++
-        QMAKE_LINK = $(MIPSTOOLS)/bin/mipsel-linux-ld
-        QMAKE_LFLAGS = -nodefaultlibs --script $(DINGOO_SDK)/lib/dingoo.xn -L$(LIB_PATH) $(LIBS) -o $(APP_NAME).elf
-
-        #INCLUDES = -I$(DINGOO_SDK)/include -I$(DINGOO_SDK)/include/SDL -I../lib -I$(MIPSTOOLS)/mipsel-linux/include -I$
-
-#        QMAKE_CFLAGS += -pipe -g -Wall -W -D_REENTRANT -DDINGUX -DHANDHELD
-        QMAKE_CXXFLAGS += -Wall -Wextra -finline-functions -fomit-frame-pointer -msoft-float -fno-builtin -fno-exceptions -G0 -O3 -mips32 -mno-abicalls -fno-pic $(W_OPTS) -D_DEBUG -DMPU_JZ4740 -c -lSDL -lsml -lc -ljz4740 -lgcc -I$(DINGOO_SDK)/include -I$(DINGOO_SDK)/include/SDL -I../lib -I$(MIPSTOOLS)/mipsel-linux/include -I$
-
-        #LIBS = $(SUBLIBS) -L$(DINGOO_SDK)/lib -lSDL -ltremor -lmikmod -lfreetype -lpng -lz -lm -lsml -lc -ljz4740 -lgcc -lstdc++
-
-
-        #QMAKE_POST_LINK += $(OPENDINGUX_TOOLCHAIN_PREFIX)bin/mipsel-linux-strip --strip-all rockbot.dge
-}
 
 
 ps2 {
@@ -224,11 +197,11 @@ ps2 {
 
         SOURCES += ports/ps2/cdvd_rpc.c
 	QMAKE_CC = ee-gcc
-        QMAKE_CFLAGS += -G0 -Dwint_t=int -Dwint_t=int -DPLAYSTATION2=1 -DNUM=100 -DUSE_RWOPS -I../include -I./include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include -I../common -I $(PS2SDK)/ee/include -I $(PS2SDK)/common/include -w
+	QMAKE_CFLAGS += -G0 -Dwint_t=int -Dwint_t=int -DPLAYSTATION2=1 -DNUM=100 -DUSE_RWOPS -I../include -I./include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include -I../common -I $(PS2SDK)/ee/include -I $(PS2SDK)/common/include
 
 	QMAKE_CXX = ee-g++
 	QMAKE_LINK = ee-g++
-        QMAKE_CXXFLAGS += -G0 -Dwint_t=int -Dwint_t=int -DPLAYSTATION2=1 -DNUM=100 -DUSE_RWOPS -I../include -I./include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include -I../common -I $(PS2SDK)/ee/include -I $(PS2SDK)/common/include -w
+	QMAKE_CXXFLAGS += -G0 -Dwint_t=int -Dwint_t=int -DPLAYSTATION2=1 -DNUM=100 -DUSE_RWOPS -I../include -I./include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include -I../common -I $(PS2SDK)/ee/include -I $(PS2SDK)/common/include
 
 	INCLUDES = -D_EE -O2 -G0 -Wall -O6 -G0 -mno-check-zero-division -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -funsigned-char -fno-builtin-printf  -I. -Iunzip -DVAR_CYCLES -DCPU_SHUTDOWN -DSPC700_SHUTDOWN -DEXECUTE_SUPERFX_PER_LINE   -DSPC700_C  -DUNZIP_SUPPORT    -DSDD1_DECOMP  -DNO_INLINE_SET_GET -DNOASM -D_STLP_NO_NAMESPACES -D_NOTHREADS -D_STLP_NO_EXCEPTIONS -D_STLP_USE_NEWALLOC -D_STLP_HAS_WCHAR_T -D_STLP_NO_IOSTREAMS -Dwint_t=int -DPLAYSTATION2=1 -DNUM=100 -DUSE_RWOPS -I../include -I./include -I$(PS2SDK)/ports/include/SDL -I$(PS2SDK)/ports/include -I../common I$(PS2SDK)/ee/include
 	LIBS = $(SUBLIBS) -mno-crt0 -T/usr/local/ps2dev/ps2sdk/ee/startup/linkfile /usr/local/ps2dev/ps2sdk/ee/startup/crt0.o ../ports/ps2/cdvd.s ../ports/ps2/usbd.s ../ports/ps2/usbhdfsd.s ../ports/ps2/SJPCM.s -L. -lstdc++ -lc -lstlport -L$(PS2DEV)/gsKit/lib -L../lib -L$(PS2SDK)/ports/lib -lSDL_image -ljpeg -ltiff -lpng -lz -ldebug -lSDL_ttf -lsdlmixer -lfreetype -lm -lcdvd -lsdl -lmf -lpacket -ldma -L/usr/local/ps2dev/ps2sdk/ee/lib -L/usr/local/ps2dev/gsKit/lib -L/usr/local/ps2dev/ps2sdk/ports/lib -lmc
@@ -243,7 +216,7 @@ open_pandora {
 	QMAKE_CXX = $(PANDORASDK)/bin/arm-angstrom-linux-gnueabi-g++
 	QMAKE_LINK = $(PANDORASDK)/bin/arm-angstrom-linux-gnueabi-g++
 
-        QMAKE_CXXFLAGS += -pipe -g -Wall -W -D_REENTRANT -DOPEN_PANDORA -DHANDHELD -I$(PANDORAROOTDIR)/usr/include
+	QMAKE_CXXFLAGS += -pipe -g -Wall -W -D_REENTRANT -DOPEN_PANDORA -DHANDHELD -I$(PANDORAROOTDIR)/usr/include
 
 	LIBS = $(SUBLIBS) -L$(PANDORAROOTDIR)/lib -L$(PANDORAROOTDIR)/usr/lib -lSDL_mixer -lSDL_image -lSDL_ttf `$(PANDORAROOTDIR)/usr/bin/sdl-config --libs` -lpthread
 
@@ -259,12 +232,12 @@ wii {
 	QMAKE_CXX = $(DEVKITPPC)/bin/powerpc-eabi-g++
 	QMAKE_LINK = $(DEVKITPPC)/bin/powerpc-eabi-g++
 
-        QMAKE_CXXFLAGS += -Dmain=SDL_main -fexceptions -G0 -Wall -O2 -DWII -DHANDHELD -g -I. -I$(DEVKITPPC)/../libogc/include/  -I$(DEVKITPPC)/../libogc/include/ogc/ -I$(DEVKITPPC)/devkitPPC/include/ -G0 -Wall -O2 -DWII -g -fno-rtti -g
-        LIBS = -Dmain=SDL_main -L. -L$(DEVKITPPC)/../portlibs/ppc/lib -L$(DEVKITPPC)/../libogc/lib/wii/ -L$(DEVKITPPC)/../libogc/lib/ -L$(DEVKITPPC)/devkitPPC/lib/ -lSDL_ttf -lSDL_mixer -lSDL_image -lsmpeg -lSDL -ljpeg -lpng -lfreetype -lvorbisidec -lz -lfat -lwiiuse -lbte -lwiikeyboard -logc -lm -mrvl
+        QMAKE_CXXFLAGS += -Dmain=SDL_main -G0 -Wall -O2 -DWII -DHANDHELD -g -I. -I$(DEVKITPPC)/../libogc/include/  -I$(DEVKITPPC)/../libogc/include/ogc/ -I$(DEVKITPPC)/devkitPPC/include/ -G0 -Wall -O2 -DWII -g -fno-exceptions -fno-rtti -g
+        LIBS = -Dmain=SDL_main -L. -L$(DEVKITPPC)/../libogc/lib/wii/ -L$(DEVKITPPC)/../libogc/lib/ -L$(DEVKITPPC)/devkitPPC/lib/ -lSDL_ttf -lSDL_mixer -lSDL_image -lsmpeg -lSDL -ljpeg -lpng -lfreetype -lvorbisidec -lz -lfat -lwiiuse -lbte -lwiikeyboard -logc -lm -mrvl
 
         INCLUDES = -I$(DEVKITPPC)/libogc/include/ -I$(DEVKITPPC)/devkitPPC/include/ -I. -I../include -I.
 
-        QMAKE_POST_LINK += $(DEVKITPPC)/bin/elf2dol rockbot.elf boot.dol
+#	QMAKE_POST_LINK += $DEVKITPPC/bin/powerpc-eabi-strip rockbot.elf
 }
 
 dreamcast {
@@ -280,9 +253,6 @@ dreamcast {
 #$KOS_OBJCOPY -R .stack -O binary rockbot_dreamcast.elf rockbot_dreamcast.bin
 }
 
-
-QMAKE_CXXFLAGS += $${DEFINESLIST}
-
 TEMPLATE = app
 
 
@@ -293,68 +263,77 @@ SOURCES += main.cpp \
     game.cpp \
     stage.cpp \
     classmap.cpp \
-    character/classplayer.cpp \
+	character/classplayer.cpp \
     timerlib.cpp \
     sceneslib.cpp \
     soundlib.cpp \
     projectilelib.cpp \
-    character/classnpc.cpp \
+	character/classnpc.cpp \
     stage_select.cpp \
     class_config.cpp \
     objects/object.cpp \
+    class_colorcycle.cpp \
     graphic/option_picker.cpp \
     scenes/dialogs.cpp \
     file/file_io.cpp \
+    character/classboss.cpp \
     graphic/animation.cpp \
-    colision_detection.cpp \
+    scenes/ending.cpp \
+	colision_detection.cpp \
     character/artificial_inteligence.cpp \
     options/key_map.cpp \
     graphic/draw.cpp \
-    aux_tools/trajectory_parabola.cpp \
-    file/convert.cpp \
+	aux_tools/trajectory_parabola.cpp \
+        file/convert.cpp \
     character/movement/jump.cpp \
     character/movement/inertia.cpp \
     scenes/password_generator.cpp \
-    file/fio_scenes.cpp \
-    scenes/sceneshow.cpp \
-    strings_map.cpp \
-    file/fio_strings.cpp \
-    aux_tools/stringutils.cpp \
-    file/fio_common.cpp \
-    game_mediator.cpp \
-    aux_tools/fps_control.cpp \
-    docs/game_manual.cpp
+    file/fio_scenes.cpp
 
 HEADERS += \
-    character/character.h \
+	character/character.h \
     graphicslib.h \
     defines.h \
     inputlib.h \
     game.h \
     stage.h \
     classmap.h \
-    character/classplayer.h \
+	character/classplayer.h \
     timerlib.h \
     sceneslib.h \
     soundlib.h \
     projectilelib.h \
-    character/classnpc.h \
+	character/classnpc.h \
     stage_select.h \
     class_config.h \
     objects/object.h \
+    class_colorcycle.h \
     graphic/option_picker.h \
     scenes/dialogs.h \
     file/format.h \
     file/file_io.h \
+    character/classboss.h \
     graphic/animation.h \
+    scenes/ending.h \
+    file/v_2_0_0.h \
+    file/v_1.h \
+    file/v_2_0_1.h \
+    file/v_2_0_2.h \
     colision_detection.h \
+	file/v_2_0_3.h \
     character/artificial_inteligence.h \
     character/st_spriteFrame.h \
+    file/v_2_0_4.h \
     ports/ps2/modules.h \
+    file/v_2_1.h \
+    file/v_2_1_1.h \
     options/key_map.h \
     graphic/draw.h \
-    aux_tools/trajectory_parabola.h \
+	aux_tools/trajectory_parabola.h \
     file/convert.h \
+	file/v_2_1_2.h \
+    file/v_3_0_0.h \
+    file/v_3_0_1.h \
     file/format/st_characterState.h \
     file/format/st_common.h \
     file/format/st_hitPoints.h \
@@ -362,27 +341,20 @@ HEADERS += \
     file/format/st_projectile.h \
     file/format/st_teleporter.h \
     character/movement/jump.h \
+    file/scenes_v300.h \
+    file/v3/file_stage.h \
+    file/v3/file_save.h \
+    file/v3/file_config.h \
     character/movement/inertia.h \
+    file/v_3_0_1.h \
+    file/v3/3_0_1/v301_config.h \
+    file/v3/3_0_1/v301_stage.h \
+    file/v3/3_0_1/v301_scenes.h \
+    file/v3/3_0_1/v301_save.h \
     file/version.h \
     scenes/password_generator.h \
-    file/fio_scenes.h \
-    scenes/sceneshow.h \
-    file/v4/file_config_v4.h \
-    file/v4/file_game_v4.h \
-    file/v4/file_save_v4.h \
-    file/v4/file_scene_v4.h \
-    file/v4/file_stage_v4.h \
-    strings_map.h \
-    file/fio_strings.h \
-    aux_tools/stringutils.h \
-    file/v4/file_strings.h \
-    file/v4/file_map.h \
-    file/fio_common.h \
-    game_mediator.h \
-    aux_tools/fps_control.h \
-    file/v4/file_anim_block.h \
-    ports/android/rockbot_android.h \
-    docs/game_manual.h
+    file/v3/3_0_1/file_scene.h \
+    file/fio_scenes.h
 
 OTHER_FILES += \
     docs/RoadMap.txt \

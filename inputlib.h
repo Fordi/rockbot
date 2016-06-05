@@ -14,18 +14,45 @@ class inputLib
 {
 public:
 	inputLib();
+    /**
+     * @brief
+     *
+     */
+    /**
+     * @brief
+     *
+     */
     void init_joystick();
-    void change_joystick();
+    /**
+     * @brief
+     *
+     */
     void readInput();
+    /**
+     * @brief
+     *
+     * @param wait_period
+     */
     void waitTime(int wait_period) const;
+    /**
+     * @brief
+     *
+     * @param int
+     * @return int
+     */
     int waitScapeTime(int);
+    /**
+     * @brief
+     *
+     */
     void clean();
-    void clean_all();     /// removes also the attack state
+    /**
+     * @brief
+     *
+     */
     void wait_keypress(); /// waits intil a key is pressed
 
-    bool pick_key_or_button(CURRENT_FILE_FORMAT::st_game_config &game_config_copy, INPUT_COMMANDS key);
-
-    int get_joysticks_number();
+    bool pick_key_or_button(format_v_3_0_1::st_game_config &game_config_copy, INPUT_COMMANDS key);
 
 
 
@@ -35,15 +62,14 @@ protected:
 private:
 
 public:
-    Uint8 p1_input[BTN_COUNT];
+    int p1_input[BTN_COUNT]; /**< TODO */
+    int p2_input[BTN_COUNT]; /**< TODO */
 
 
 private:
-    SDL_Joystick *joystick1;
-    bool _used_keyboard;
+    SDL_Joystick *joystick1, *joystick2; /**< TODO */
+    bool _used_keyboard; /**< TODO */
     bool _show_btn_debug;
-    int turbo_timer;
-    bool turbo_state;
 };
 
 #endif // INPUTLIB_H

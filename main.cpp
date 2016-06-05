@@ -11,7 +11,6 @@
 #include <jni.h>
 #include <android/log.h>
 #include <SDL_screenkeyboard.h>
-#include "ports/android/rockbot_android.h"
 #endif
 
 #ifdef OSX
@@ -30,25 +29,20 @@
 #include <SDL/SDL_endian.h>
 #include <SDL/SDL_mixer.h>
 
-#include "strings_map.h"
+
 
 // ************** CODE AND DEBUG flags ************** //
-#define DEBUG_SHOW_FPS 1
-#define PS2LOADFROMFIXEDPOINT 1
+//#define DEBUG_SHOW_FPS 1
+//#define PS2LOADFROMFIXEDPOINT 1
 //#define DISABLESOUND 1
 #define PS2LINK 1
 #define DEBUG_OUTPUT 1 // will output all DEBUG_COUT messages, comments this out to disable all console output messages
 
 // GLOBAL/EXTERN VARIABLES
-std::string GAMEPATH; // path without DATA/GAMES
-std::string FILEPATH; // path including game-data dir
+std::string FILEPATH;
 std::string SAVEPATH;
-std::string GAMENAME; // the gamename, part of path
 SDL_Event event;
 bool have_save = false;
-#ifdef ANDROID
-jobject activity_ref;
-#endif
 
 #include "defines.h"
 #include "graphicslib.h"
@@ -57,10 +51,7 @@ jobject activity_ref;
 #include "timerlib.h"
 #include "soundlib.h"
 #include "game.h"
-#include "aux_tools/fps_control.h"
-#include "aux_tools/stringutils.h"
-
-#define MAXPATHLEN 256
+#include "scenes/ending.h"
 
 #if defined(LINUX) || defined(OSX)
     #include <errno.h>
@@ -69,6 +60,7 @@ jobject activity_ref;
     #include <sys/param.h>
 #elif defined(PLAYSTATION2) || defined(DINGUX) || defined(PSP) || defined(ANDROID) || defined(OPEN_PANDORA) || defined(WII)
     #include <unistd.h>
+    #define MAXPATHLEN 256
 #elif defined(WIN32)
     #include <direct.h>
     #undef main // to build on win32
@@ -77,15 +69,13 @@ jobject activity_ref;
 #if defined(DINGUX)
 	std::string EXEC_NAME("rockbot.dge");
 #elif defined(WIN32)
-    std::string EXEC_NAME = std::string("rockbot.exe");
+	std::string EXEC_NAME("rockbot.exe");
 #elif defined(PLAYSTATION2)
 	std::string EXEC_NAME("rockbot.elf");
 #elif defined(PSP)
 	std::string EXEC_NAME("EBOOT.PBP");
 #elif defined(ANDROID)
     std::string EXEC_NAME("");
-#elif defined(WII)
-    std::string EXEC_NAME("boot.dol");
 #else
     std::string EXEC_NAME("rockbot");
 #endif
@@ -104,21 +94,18 @@ bool GAME_FLAGS[FLAG_COUNT];
 int default_keys_codes[BTN_COUNT]; // number indicator for the keyboard-keys
 int default_button_codes[BTN_COUNT]; // number indicator for the keyboard-keys
 
-bool leave_game = false;
-
 
 #include "file/file_io.h"
 CURRENT_FILE_FORMAT::file_io fio;
 CURRENT_FILE_FORMAT::file_game game_data;
 CURRENT_FILE_FORMAT::file_stage stage_data;
-CURRENT_FILE_FORMAT::file_map map_data[FS_STAGE_MAX_MAPS];
 
 #include "defines.h"
 
 FREEZE_EFFECT_TYPES freeze_weapon_effect = FREEZE_EFFECT_NONE;
 int freeze_weapon_id = -1;
 
-struct CURRENT_FILE_FORMAT::st_checkpoint checkpoint;
+struct format_v_2_0_1::st_checkpoint checkpoint;
 
 #ifdef PLAYSTATION2
     #include "ports/ps2/modules.h"
@@ -172,9 +159,9 @@ void PS2_create_save_icons()
     std::string filename = SAVEPATH + "/icon.sys";
     FILE *fp = fopen(filename.c_str(), "rb");
     if (fp == NULL) {
-        std::string filename = FILEPATH + "images/icon.sys";
+        std::string filename = FILEPATH + "data/images/icon.sys";
         PS2_copy_to_memorycard(filename, "icon.sys");
-        filename = FILEPATH + "images/rockbot_ps2_icon.icn";
+        filename = FILEPATH + "data/images/rockbot_ps2_icon.icn";
         PS2_copy_to_memorycard(filename, "rockbot_ps2_icon.icn");
     } else {
         fclose(fp);
@@ -241,8 +228,7 @@ void get_filepath()
     }
 #else
     char *buffer = new char[MAXPATHLEN];
-    char* res = getcwd(buffer, MAXPATHLEN);
-    UNUSED(res);
+    buffer = getcwd(buffer, MAXPATHLEN);
     if(buffer != NULL){
         FILEPATH = std::string(buffer);
     }
@@ -250,21 +236,31 @@ void get_filepath()
     delete[] buffer;
 #endif
 
+    /*
+    #ifdef ANDROID
+        FILEPATH = "/sdcard/Android/data/net.upperland.rockbot/files/";
+    #elif WII
+        FILEPATH = "sd:/apps/Rockbot/";
+        printf("MAIN #D\n");
+    #elif defined(PLAYSTATION2) && defined(PS2LOADFROMFIXEDPOINT) // DEBUG
+        FILEPATH = "mass:/PS2/Rockbot/";
+    #endif
+    */
+
     #if defined(PLAYSTATION2) && defined(PS2LOADFROMFIXEDPOINT) // DEBUG
         FILEPATH = "mass:/PS2/Rockbot/";
-    //#elif WII
-        //FILEPATH = "sd:/apps/Rockbot/";
-        //printf("MAIN #D\n");
+    #elif WII
+        FILEPATH = "sd:/apps/Rockbot/";
+        printf("MAIN #D\n");
     #endif
     std::cout << "get_filepath - FILEPATH:" << FILEPATH << std::endl;
 	#ifdef DREAMCAST
 		FILEPATH = "/cd/";
 	#endif
 
-    GAMEPATH = FILEPATH;
 }
 
-/// @TODO - move to ports
+
 /*
 void execute_memory_test() {
 #ifdef PSP
@@ -356,9 +352,6 @@ int main(int argc, char *argv[])
 #endif
 
 
-    printf(">> WII.DEBUG #A <<");
-    fflush(stdout);
-
     get_filepath();
     // fallback in case getcwd returns null
     if (FILEPATH.size() == 0) {
@@ -372,13 +365,37 @@ int main(int argc, char *argv[])
 #ifdef PLAYSTATION2
     std::cout << "PS2.DEBUG #1" << std::endl; std::fflush(stdout);
 
-    PS2_init();
+    #ifndef PS2LINK
+    SifIopReset(NULL, 0); // clean previous loading of irx by apps like ulaunchElf. Comment this line to get cout on ps2link
+    #endif
+
+    printf("DEBUG.PS2 #1.1\n");
+
+	/* SP193: Being creative (Do something while waiting for the slow IOP to be reset). =D */
+	int main_id = GetThreadId();
+    ChangeThreadPriority(main_id, 72);
+    std::cout << "PS2.DEBUG #1.1" << std::endl; std::fflush(stdout);
+    printf("DEBUG.PS2 #1.2\n");
+
+    #ifndef PS2LINK
+    while(SifIopSync()) {
+        std::cout << "PS2.SifIopSync()" << std::endl;
+    }
+    #endif
+	/* Initialize and connect to all SIF services on the IOP. */
+	SifInitRpc(0);
+	SifInitIopHeap();
+	SifLoadFileInit();
+	fioInit();
+    printf("DEBUG.PS2 #1.3\n");
+
+	/* Apply the SBV LMB patch to allow modules to be loaded from a buffer in EE RAM. */
+	sbv_patch_enable_lmb();
 
     // --- DEBUG --- //
     //FILEPATH = "cdfs:/";
     // --- DEBUG --- //
 
-    //PS2_load_xio();
     std::cout << "PS2.DEBUG #2" << std::endl; std::fflush(stdout);
 
     if (FILEPATH.find("mass:") != std::string::npos) {
@@ -393,7 +410,6 @@ int main(int argc, char *argv[])
         FILEPATH = "cdfs:";
         PS2_load_CDROM();
     }
-
     printf("DEBUG.PS2 #2\n");
 
 
@@ -419,20 +435,17 @@ int main(int argc, char *argv[])
 				GAME_FLAGS[FLAG_ALLWEAPONS] = true;
 			} else if (temp_argv == "--infinitejump") { // player can jump again and again
 				GAME_FLAGS[FLAG_INFINITE_JUMP] = true;
-            } else if (temp_argv == "--player1") {
-                GAME_FLAGS[FLAG_PLAYER1] = true;
-            } else if (temp_argv == "--player2") {
-                GAME_FLAGS[FLAG_PLAYER2] = true;
-            } else if (temp_argv == "--player3") {
-                GAME_FLAGS[FLAG_PLAYER3] = true;
-            } else if (temp_argv == "--player4") {
-                GAME_FLAGS[FLAG_PLAYER4] = true;
+            } else if (temp_argv == "--rockbot") {
+                GAME_FLAGS[FLAG_PLAYER_ROCKBOT] = true;
+            } else if (temp_argv == "--betabot") {
+                GAME_FLAGS[FLAG_PLAYER_BETABOT] = true;
+            } else if (temp_argv == "--candybot") {
+                GAME_FLAGS[FLAG_PLAYER_CANDYBOT] = true;
+            } else if (temp_argv == "--kittybot") {
+                GAME_FLAGS[FLAG_PLAYER_KITTYBOT] = true;
             }
 		}
 	}
-
-    printf(">> WII.DEBUG #B <<");
-    fflush(stdout);
 
     /// DEBUG ///
     //GAME_FLAGS[FLAG_QUICKLOAD] = true;
@@ -448,67 +461,15 @@ int main(int argc, char *argv[])
         _mkdir(SAVEPATH.c_str());
     #elif DREAMCAST
         SAVEPATH = "/vmu/a1";
+
     #else
-        SAVEPATH = GAMEPATH;
+        SAVEPATH = FILEPATH;
     #endif
 
-    printf(">> WII.DEBUG #C <<");
-    fflush(stdout);
 
+        std::cout << "SAVEPATH: " << SAVEPATH << std::endl;
 
-    std::cout << "SAVEPATH: " << SAVEPATH << std::endl;
-
-#ifndef PLAYSTATION2
-    fio.load_config(game_config);
-#endif
-
-    // INIT GRAPHICS
-    if (graphLib.initGraphics() != true) {
-        printf(">> WII.DEBUG #D <<");
-        fflush(stdout);
-        std::cout << "ERROR intializing graphic mode." << std::endl;
-        return -1;
-    }
-
-    printf(">> WII.DEBUG #E <<");
-    fflush(stdout);
-
-#ifdef ANDROID
-    set_android_default_buttons_pos();
-#endif
-
-
-
-
-    GAMENAME = gameControl.select_game_screen();
-
-    printf(">> WII.DEBUG #F <<");
-    fflush(stdout);
-
-    // DEBUG PS2 //
-    //GAMENAME = std::string("Rockbot2");
-
-    if (GAMENAME == "") {
-        graphLib.draw_text(20, 20, strings_map::get_instance()->get_ingame_string(strings_ingame_engineerror) + std::string(":"));
-        graphLib.draw_text(20, 32, strings_map::get_instance()->get_ingame_string(strings_ingame_nogames));
-
-        std::string filename = GAMEPATH + "/games/";
-        filename = StringUtils::clean_filename(filename);
-
-        graphLib.draw_text(20, 44, filename);
-
-        input.wait_keypress();
-        SDL_Quit();
-        return 0;
-    }
-    FILEPATH += std::string("/games/") + GAMENAME + std::string("/");
-
-
-    printf(">> WII.DEBUG #G <<");
-    fflush(stdout);
-
-    std::cout << "GAMENAME: " << GAMENAME << std::endl;
-
+    fio.check_conversion();
 	fio.read_game(game_data);
 
 
@@ -518,6 +479,17 @@ int main(int argc, char *argv[])
     gameControl.get_drop_item_ids();
 	soundManager.init_audio_system();
 
+
+
+#ifndef PLAYSTATION2
+    fio.load_config(game_config);
+#endif
+
+	// INIT GRAPHICS
+	if (graphLib.initGraphics() != true) {
+        printf("ERROR intializing graphic\n");
+		return -1;
+	}
 
     // define SAVEPATH
     #ifdef PLAYSTATION2
@@ -534,7 +506,6 @@ int main(int argc, char *argv[])
     #endif
     have_save = fio.save_exists();
 
-    /*
     #ifndef DEBUG_OUTPUT // redirect output to null
         std::string cout_file = "/dev/null";
         std::ofstream out(cout_file.c_str());
@@ -543,17 +514,15 @@ int main(int argc, char *argv[])
         // --- REDIRECT STDOUT TO A FILE --- //
         #if defined(PSP) || defined(WII) || defined(ANDROID) || defined(DINGUX) || defined(PLAYSTATION2)
             //std::string cout_file = SAVEPATH + "/stdout.txt";
-            std::string cout_file = GAMEPATH + "/stdout.txt";
+            std::string cout_file = FILEPATH + "/stdout.txt";
             std::streambuf *coutbuf = std::cout.rdbuf();
             std::ofstream out(cout_file.c_str());
             std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
         #endif
     #endif
-    */
 
 
     graphLib.preload();
-
 #ifdef PLAYSTATION2
     fio.load_config(game_config);
     PS2_create_save_icons();
@@ -562,23 +531,13 @@ int main(int argc, char *argv[])
 
     gameControl.currentStage = INTRO_STAGE;
 
-    // === DEBUG === //
-    game_config.volume_sfx = 128;
-    game_config.volume_music = 128;
 
 
-    input.clean();
-    input.p1_input[BTN_START] = 0;
-    input.waitTime(200);
-
-    input.clean();
 
 
 	// INIT GAME
 	if (GAME_FLAGS[FLAG_QUICKLOAD] == false) {
 		if (gameControl.showIntro() == false) {
-            printf(">> WII.DEBUG #INTRO ERROR <<");
-            fflush(stdout);
             std::cout << "ERROR SHOWING INTRO" << std::endl;
 			return 0;
 		}
@@ -589,14 +548,12 @@ int main(int argc, char *argv[])
         //return 1;
     }
 
+	input.clean();
+	input.p1_input[BTN_START] = 0;
+	input.waitTime(200);
+	input.clean();
 
     bool run_game = true;
-
-    fps_control fps_manager;
-    fps_manager.initialize();
-
-    fflush(stdout);
-
 
     while (run_game) {
         #if !defined(DINGUX)
@@ -609,29 +566,32 @@ int main(int argc, char *argv[])
         #endif
 
 
-        gameControl.showGame(true, true);
+		gameControl.showGame();
 #ifdef DEBUG_SHOW_FPS
         gameControl.fps_count();
 #endif
         draw_lib.update_screen();
         if (input.p1_input[BTN_QUIT] == 1) {
             std::fflush(stdout);
-            leave_game = true;
+            gameControl.leave_game();
         }
-        fps_manager.limit();
+        unsigned int now_ticks = timer.get_ticks();
+        if (now_ticks < (1000 / FRAMES_PER_SECOND)) {
+            timer.delay((1000 / FRAMES_PER_SECOND) - now_ticks);
+        }
 
     }
 	/// @TODO: sdl quit sub-systems
 
 
-	
+
 #ifdef PSP
     sceKernelExitGame();
     return 0;
 #else
     SDL_Quit();
 #endif
-	
+
 	return 1;
 }
 
@@ -645,7 +605,6 @@ JNIEXPORT void JNICALL Java_net_upperland_rockbot_DemoRenderer_nativeInit(JNIEnv
 {
     char * argv[1];
     argv[0] = "./";
-    activity_ref = obj;
     main(1, argv);
 }
 

@@ -8,20 +8,14 @@
 #include <math.h>
 #include <string.h>
 
-#include "game_mediator.h"
-
 #include "inputlib.h"
 extern inputLib input;
-
-#include "game.h"
-extern game gameControl;
 
 
 extern std::string FILEPATH;
 
 extern CURRENT_FILE_FORMAT::file_game game_data;
 extern CURRENT_FILE_FORMAT::file_stage stage_data;
-extern CURRENT_FILE_FORMAT::file_map map_data[FS_STAGE_MAX_MAPS];
 
 extern FREEZE_EFFECT_TYPES freeze_weapon_effect;
 extern int freeze_weapon_id;
@@ -39,28 +33,20 @@ classnpc::classnpc() : graphic_filename(), first_run(true), _is_player_friend(fa
 	clean_projectiles();
     facing = 0;
     _is_spawn = false;
-    _initialized = false;
-    _screen_blinked = false;
 }
-
 
 
 
 classnpc::classnpc(int stage_id, int map_id, int main_id, int id) : _is_player_friend(false) // map-loaded npc
 {
     build_basic_npc(stage_id, map_id, main_id);
-    facing = map_data[map_id].map_npcs[id].direction;
+    facing = stage_data.maps[map_id].map_npcs[id].direction;
     state.direction = facing;
-
-    fflush(stdout);
-
-    start_point.x = map_data[map_id].map_npcs[id].start_point.x * TILESIZE;
-    start_point.y = map_data[map_id].map_npcs[id].start_point.y * TILESIZE;
+    start_point.x = stage_data.maps[map_id].map_npcs[id].start_point.x * TILESIZE;
+    start_point.y = stage_data.maps[map_id].map_npcs[id].start_point.y * TILESIZE;
     position.x = start_point.x;
     position.y = start_point.y;
     _is_spawn = false;
-    _initialized = false;
-    _screen_blinked = false;
 }
 
 classnpc::classnpc(int stage_id, int map_id, int main_id, st_position npc_pos, short int direction, bool player_friend) // spawned npc
@@ -74,8 +60,6 @@ classnpc::classnpc(int stage_id, int map_id, int main_id, st_position npc_pos, s
     position.x = npc_pos.x;
     position.y = npc_pos.y;
     _is_spawn = true;
-    _initialized = false;
-    _screen_blinked = false;
 }
 
 
@@ -91,8 +75,6 @@ classnpc::classnpc(std::string set_name) : graphic_filename(), first_run(true), 
 	add_graphic();
     facing = 0;
     _is_spawn = false;
-    _initialized = false;
-    _screen_blinked = false;
 }
 
 
@@ -107,12 +89,15 @@ void classnpc::build_basic_npc(int stage_id, int map_id, int main_id)
 {
     UNUSED(stage_id);
     UNUSED(map_id);
+    //std::cout << "classnpc::build_basic_npc" << std::endl;
 	_number = main_id;
 	// TODO - usar operador igual e também para cópia de toda a classe para ela mesma
 	graphicsLib_gSurface npc_sprite_surface;
 
 
-    name = std::string(GameMediator::get_instance()->get_enemy(main_id).name);
+	//std::cout << "NPC 1 - stage_id: " << stage_id << ", map_id: " << map_id << ", main_id: " << main_id << ", id: " << id << std::endl;
+
+    name = std::string(game_data.game_npcs[main_id].name);
 
 	add_graphic();
 
@@ -122,45 +107,47 @@ void classnpc::build_basic_npc(int stage_id, int map_id, int main_id)
     for (int i=0; i<CHAR_ANIM_DIRECTION_COUNT; i++) {
 		for (int j=0; j<ANIM_TYPE_COUNT; j++) {
 			for (int k=0; k<ANIM_FRAMES_COUNT; k++) {
-                (character_graphics_list.find(name)->second)->frames[i][j][k].frameSurface.persistent = true;
+				(character_graphics_list.find(name)->second)[i][j][k].frameSurface.persistent = true;
 			}
 		}
 	}
 
 
 
-    hitPoints.total = GameMediator::get_instance()->get_enemy(main_id).hp.total;
+	hitPoints.total = game_data.game_npcs[main_id].hp.total;
 	hitPoints.current = hitPoints.total;
 
-    if (state.direction > CHAR_ANIM_DIRECTION_COUNT) {
+    if (state.direction < 0 || state.direction > CHAR_ANIM_DIRECTION_COUNT) {
 		state.direction = ANIM_DIRECTION_RIGHT;
 	}
 
-    move_speed = GameMediator::get_instance()->get_enemy(main_id).speed;
-    walk_range = GameMediator::get_instance()->get_enemy(main_id).walk_range;
+	move_speed = game_data.game_npcs[main_id].speed;
+	walk_range = game_data.game_npcs[main_id].walk_range;
 	if (walk_range < 0 || walk_range > 1000) { // fix data errors by setting value to default
 		walk_range = TILESIZE*6;
 	}
 
 
 
-    graphic_filename = GameMediator::get_instance()->get_enemy(main_id).graphic_filename;
+	graphic_filename = game_data.game_npcs[main_id].graphic_filename;
 
 
-    frameSize.width = GameMediator::get_instance()->get_enemy(main_id).frame_size.width;
-    frameSize.height = GameMediator::get_instance()->get_enemy(main_id).frame_size.height;
-    is_ghost = (GameMediator::get_instance()->get_enemy(main_id).is_ghost != 0);
-    shield_type = GameMediator::get_instance()->get_enemy(main_id).shield_type;
+	frameSize.width = game_data.game_npcs[main_id].frame_size.width;
+    frameSize.height = game_data.game_npcs[main_id].frame_size.height;
+    is_ghost = (game_data.game_npcs[main_id].is_ghost != 0);
+	shield_type = game_data.game_npcs[main_id].shield_type;
 	_is_boss = false;
 
-    _attack_frame_n = GameMediator::get_instance()->get_enemy(main_id).attack_frame;
+	IA_type = game_data.game_npcs[main_id].IA_type;
 
 
     // TODO - this logic can be passed to the editor
-    if (GameMediator::get_instance()->get_enemy(main_id).fly_flag != 0) {
+    if (game_data.game_npcs[main_id].fly_flag != 0) {
         //std::cout << "******** classnpc::set_file_data - npc: " << name << ", canfly: " << can_fly << std::endl;
         can_fly = true;
     }
+    _projectile_type_id = game_data.game_npcs[main_id].projectile_id[0];
+
 	realPosition.x = 0;
 	realPosition.y = 0;
 
@@ -175,41 +162,55 @@ void classnpc::build_basic_npc(int stage_id, int map_id, int main_id)
 		// load the graphic from file and set it into frameset
 
 
-        std::string temp_filename = FILEPATH + "images/sprites/enemies/" + graphic_filename;
+        std::string temp_filename = FILEPATH + "data/images/sprites/enemies/" + graphic_filename;
         //printf(">> temp_filename: '%s'\n", temp_filename.c_str());
 
         graphLib.surfaceFromFile(temp_filename, &npc_sprite_surface);
-        if (npc_sprite_surface.get_surface() == NULL) {
+		if (npc_sprite_surface.gSurface == NULL) {
 			std::cout << "initFrames - Error loading player surface from file\n";
 			return;
 		}
 
+        // @204
         for (int i=0; i<ANIM_TYPE_COUNT; i++) {
             for (int j=0; j<ANIM_FRAMES_COUNT; j++) {
-                if (GameMediator::get_instance()->get_enemy(main_id).sprites[i][j].used == true) {
-                    addSpriteFrame(i, GameMediator::get_instance()->get_enemy(main_id).sprites[i][j].sprite_graphic_pos_x, npc_sprite_surface, GameMediator::get_instance()->get_enemy(main_id).sprites[i][j].duration);
+                if (game_data.game_npcs[main_id].sprites[i][j].used == true) {
+                    //void character::addSpriteFrame(int anim_direction, int anim_type, int posX, int posY, graphicsLib_gSurface &spritesSurface, int delay)
+                    addSpriteFrame(ANIM_DIRECTION_LEFT, i, game_data.game_npcs[main_id].sprites[i][j].sprite_graphic_pos_x, 0, npc_sprite_surface, game_data.game_npcs[main_id].sprites[i][j].duration);
+                    if (npc_sprite_surface.height < game_data.game_npcs[main_id].frame_size.height*2-1) {
+                        if (name == "Giant Fly") std::cout << ">>>>>>>>>>>>>>>> NOT RIGHT #1 - npc.h: " << npc_sprite_surface.height << ", frame.h: " << (int)game_data.game_npcs[main_id].frame_size.height << ", frame.h*2: " << (game_data.game_npcs[main_id].frame_size.height*2) << std::endl;
+                        _character_have_right_graphic.insert(std::pair<std::string, bool>(name, false));
+                        _have_right_direction_graphics = false;
+                    } else {
+                        _character_have_right_graphic.insert(std::pair<std::string, bool>(name, true));
+                        addSpriteFrame(ANIM_DIRECTION_RIGHT, i, game_data.game_npcs[main_id].sprites[i][j].sprite_graphic_pos_x, 1, npc_sprite_surface, game_data.game_npcs[main_id].sprites[i][j].duration);
+                    }
                 }
             }
         }
+    } else {
+        _have_right_direction_graphics = _character_have_right_graphic.find(name)->second;
+        if (name == "Giant Fly" && _have_right_direction_graphics == false) std::cout << ">>>>>>>>>>>>>>>> NOT RIGHT #2" << std::endl;
+        //std::cout << "$$$$$$$ NPC (" << name << ") - _have_right_direction_graphics: " << _have_right_direction_graphics << std::endl;
     }
 
 
     if (have_background_graphics() == false) {
         graphicsLib_gSurface bg_surface;
-        std::string bg_filename(GameMediator::get_instance()->get_enemy(main_id).bg_graphic_filename);
+        std::string bg_filename(game_data.game_npcs[main_id].bg_graphic_filename);
         //std::cout << ">>>>>>>>> NPC[" << name << "].bg_filename: '" << bg_filename << "', length: " << bg_filename.length() << ", size: " << bg_filename.size() << std::endl;
         if (bg_filename.size() > 0) {
-            std::string full_bggraphic_filename = FILEPATH + "images/sprites/backgrounds/" + bg_filename;
+            std::string full_bggraphic_filename = FILEPATH + "data/images/sprites/backgrounds/" + bg_filename;
             std::cout << ">>>>>>>>> NPC[" << name << "].bg_filename: " << bg_filename << std::endl;
             graphLib.surfaceFromFile(full_bggraphic_filename, &bg_surface);
-            if (bg_surface.get_surface() == NULL) {
+            if (bg_surface.gSurface == NULL) {
                 std::cout << "initFrames - Error loading NPC background surface from file '" << full_bggraphic_filename << std::endl;
                 return;
             }
             _character_graphics_background_list.insert(std::pair<std::string, graphicsLib_gSurface>(name, bg_surface));
             _has_background = true;
-            _frame_pos_adjust.x = GameMediator::get_instance()->get_enemy(main_id).sprites_pos_bg.x;
-            _frame_pos_adjust.y = GameMediator::get_instance()->get_enemy(main_id).sprites_pos_bg.y;
+            _frame_pos_adjust.x = game_data.game_npcs[main_id].sprites_pos_bg.x;
+            _frame_pos_adjust.y = game_data.game_npcs[main_id].sprites_pos_bg.y;
         }
     }
 
@@ -230,46 +231,20 @@ bool classnpc::is_spawn()
 
 bool classnpc::is_subboss()
 {
-    return GameMediator::get_instance()->get_enemy(_number).is_sub_boss;
+    return game_data.game_npcs[_number].is_sub_boss;
 }
 
 void classnpc::reset_position()
 {
+    std::cout << "#1 NPC::RESET_POSITION - x: " << position.x << ", y: " << position.y << ", start.x: " << start_point.x << ", start.y: " << start_point.y << std::endl;
     position.x = start_point.x;
     position.y = start_point.y;
+    std::cout << "#2 NPC::RESET_POSITION - x: " << position.x << ", y: " << position.y << ", start.x: " << start_point.x << ", start.y: " << start_point.y << std::endl;
 }
 
 st_position classnpc::get_start_position()
 {
     return st_position(start_point.x, start_point.y);
-}
-
-st_rectangle classnpc::get_hitbox()
-{
-    int temp_x = position.x + GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.x;
-    int temp_y = position.y + GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.y;
-    int temp_w = GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.w;
-    int temp_h = GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.h;
-
-    // @TODO - invert X depending on direction
-
-    //std::cout << "#NPC::get_hitbox[" << name << "] - x: " << temp_x << ", y: " << temp_y << ", w: " << temp_w << ", h: " << temp_h << std::endl;
-
-    if (state.direction == ANIM_DIRECTION_LEFT) {
-        temp_x = (frameSize.width - GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.x) - GameMediator::get_instance()->get_enemy(_number).sprites[state.animation_type][state.animation_state].colision_rect.w + position.x;
-    }
-
-    return st_rectangle(temp_x, temp_y, temp_w, temp_h);
-}
-
-void classnpc::show()
-{
-#ifdef SHOW_HITBOXES
-    st_rectangle hitbox = get_hitbox();
-    hitbox.x -= map->getMapScrolling().x;
-    graphLib.draw_rectangle(hitbox, 0, 0, 255, 100);
-#endif
-    character::show();
 }
 
 
@@ -287,68 +262,13 @@ void classnpc::initFrames()
 // ********************************************************************************************** //
 void classnpc::execute()
 {
-
-
     if (freeze_weapon_effect == FREEZE_EFFECT_NPC && is_weak_to_freeze() == true) {
+        if (name == "Mage Bot") std::cout << ">>> FROZEN[" << name << "], Clean projectiles" << std::endl;
         clean_projectiles();
         return;
     }
-
-    if (is_dead() == true) {
-        move_projectiles();
-    } else {
-        if (is_boss() || is_stage_boss()) {
-            boss_move();
-        } else {
-            move();
-        }
-        charMove();
-    }
-}
-
-void classnpc::boss_move()
-{
-    //std::cout << "NPC::boss_move::BEGIN" << std::endl;
-    if (hitPoints.current <= 0 || position.x < map->getMapScrolling().x-TILESIZE*2 || position.x > map->getMapScrolling().x+RES_W+TILESIZE*2) {
-        //std::cout << "classboss::execute - LEAVE #1" << std::endl;
-        return;
-    }
-    if (last_execute_time > timer.getTimer()) {
-        //std::cout << "classboss::execute - LEAVE #2" << std::endl;
-        return;
-    }
-    if (freeze_weapon_effect == FREEZE_EFFECT_NPC && is_weak_to_freeze() == true) {
-        //std::cout << "classboss::execute - LEAVE #3" << std::endl;
-        clean_projectiles();
-        return;
-    }
-
-    //std::cout << "classboss::boss_move[" << name << "] - _initialized: " << _initialized << std::endl;
-
-    move_projectiles();
-
-    if (_initialized == 0 && _is_boss == true) { /// @TODO: move this logic to map (player should not move while boss is presenting)
-        _initialized++;
-        set_animation_type(ANIM_TYPE_TELEPORT);
-        gameControl.map_present_boss(_is_boss);
-        return;
-    } else if (_initialized == 1 && _is_boss == true) {
-        if (position.x > RES_H/3 && gravity(true) == false) {
-            _initialized++;
-        }
-        return;
-    }
-
-    if (first_run == 0) {
-        first_run = 1;
-    }
-
-    if (_ai_timer > timer.getTimer()) {
-        return;
-    }
-
-    execute_ai();
-    gravity(false);
+    move();
+	charMove();
 }
 
 
@@ -365,7 +285,7 @@ void classnpc::copy(classnpc *from)
     for (i=0; i<CHAR_ANIM_DIRECTION_COUNT; i++) {
 		for (int j=0; j<ANIM_TYPE_COUNT; j++) {
 			for (int k=0; k<ANIM_FRAMES_COUNT; k++) {
-                (character_graphics_list.find(name)->second)->frames[i][j][k] = from->character_graphics_list.find(name)->second->frames[i][j][k];
+				(character_graphics_list.find(name)->second)[i][j][k] = from->character_graphics_list.find(name)->second[i][j][k];
 			}
 		}
 	}
@@ -373,6 +293,9 @@ void classnpc::copy(classnpc *from)
 	shield_type = from->shield_type;
 
 	_is_boss = from->_is_boss;
+	IA_type = from->IA_type;
+    _projectile_type_id = from->_projectile_type_id;
+
 	hitPoints = from->hitPoints;
 	name = from->name;
 	position = from->position;
@@ -396,8 +319,6 @@ void classnpc::move_projectiles()
 	// animate projectiles
     //if (name == "Dynamite Bot") std::cout << "******* NPC::move_projectiles - projectile_list.size: " << projectile_list.size() << std::endl;
     std::vector<projectile>::iterator it;
-    st_rectangle player_hitbox = map->_player_ref->get_hitbox();
-
 	for (it=projectile_list.begin(); it<projectile_list.end(); it++) {
         (*it).draw();
         st_size moved = (*it).move();
@@ -416,39 +337,37 @@ void classnpc::move_projectiles()
             if ((*it).get_move_type() == TRAJECTORY_QUAKE) {
                 ground_damage_players();
                 continue;
-            } else if ((*it).get_move_type() == TRAJECTORY_PUSH_BACK) {
-                //@TODO
-                push_back_players(!state.direction);
-                continue;
             }
 
-            if ((*it).check_colision(player_hitbox, st_position(moved.width, moved.height)) == true) {
-                if (map->_player_ref->is_shielded((*it).get_direction()) == true && (*it).get_trajectory() != TRAJECTORY_BOMB && (*it).get_trajectory() != TRAJECTORY_LIGHTING) {
-                    (*it).reflect();
-                } else if (map->_player_ref->is_using_circle_weapon() == true) {
-                    std::cout << "NPC projectile hit player centered-weapon" << std::endl;
-                    (*it).consume_projectile();
-                    map->_player_ref->consume_projectile();
-                } else {
-                    int damage_pts = (*it).get_damage();
-                    if (damage_pts < 2) {
-                        damage_pts = 2;
-                    }
-                    map->_player_ref->damage(damage_pts, false);
-                    (*it).consume_projectile();
-                }
-            }
+            std::vector<classPlayer*>::iterator enemy_it;
+			for (enemy_it=map->_player_list.begin(); enemy_it != map->_player_list.end(); enemy_it++) {
+                if ((*it).check_colision(st_rectangle((*enemy_it)->getPosition().x, (*enemy_it)->getPosition().y, (*enemy_it)->get_size().width, (*enemy_it)->get_size().height), st_position(moved.width, moved.height)) == true) {
+                    if ((*enemy_it)->is_shielded((*it).get_direction()) == true) {
+                        (*it).reflect();
+                    } else if ((*enemy_it)->is_using_circle_weapon() == true) {
+                        std::cout << "NPC projectile hit player centered-weapon" << std::endl;
+                        (*it).consume_projectile();
+                        (*enemy_it)->consume_projectile();
+					} else {
+                        int damage_pts = (*it).get_damage();
+                        if (damage_pts < 2) {
+                            damage_pts = 2;
+                        }
+                        (*enemy_it)->damage(damage_pts, false);
+                        (*it).consume_projectile();
+					}
+				}
+			}
         } else { // NPC attacking other NPCs
-
-            for (int i=0; i<map->_npc_list.size(); i++) {
-                st_rectangle other_npc_hitbox = map->_npc_list.at(i).get_hitbox();
+            std::vector<classnpc*>::iterator enemy_it;
+			for (enemy_it=map->_npc_list.begin(); enemy_it != map->_npc_list.end(); enemy_it++) {
 				//classnpc* enemy = (*enemy_it);
-                if ((*it).check_colision(other_npc_hitbox, st_position(moved.width, moved.height)) == true) {
+                if ((*it).check_colision(st_rectangle((*enemy_it)->getPosition().x, (*enemy_it)->getPosition().y, (*enemy_it)->get_size().width, (*enemy_it)->get_size().height), st_position(moved.width, moved.height)) == true) {
 					//std::cout << "is_shielded::CALL 2" << std::endl;
-                    if (map->_npc_list.at(i).is_shielded((*it).get_direction()) == true && (*it).get_trajectory() != TRAJECTORY_BOMB && (*it).get_trajectory() != TRAJECTORY_LIGHTING) {
+                    if ((*enemy_it)->is_shielded((*it).get_direction()) == true) {
                         (*it).reflect();
 					} else {
-                        map->_npc_list.at(i).damage((*it).get_damage(), false);
+                        (*enemy_it)->damage((*it).get_damage(), false);
                         if ((*it).get_move_type() != TRAJECTORY_CHAIN) { /// @TODO non-destructable types
                             (*it).consume_projectile();
 						}
@@ -466,13 +385,19 @@ void classnpc::move_projectiles()
 
 // executes the NPC sub-IA behavior
 void classnpc::move() {
-    if (state.direction > CHAR_ANIM_DIRECTION_COUNT-1) {
+
+
+
+
+    if (state.direction < 0 || state.direction > CHAR_ANIM_DIRECTION_COUNT-1) {
         state.direction = ANIM_DIRECTION_LEFT;
     }
 
 
 	int mapScrollX = map->getMapScrolling().x;
 
+	// only move npcs that are in the current screen and are alive
+	//mapScrollX = -map_pos_x;
 
 
 	/// @TODO: this check must be placed in game.cpp and npc must have a set_frozen() method, for individual effect
@@ -490,8 +415,11 @@ void classnpc::move() {
 	}
 
 
-    if (hitPoints.current > 0) {
-        execute_ai();
+	//std::cout << "classnpc::move()::START::name: " << name << ", hitPoints.current: " << hitPoints.current << ", position.x: " << position.x << ", mapScrollX: " << mapScrollX << std::endl;
+
+    if (hitPoints.current > 0 && position.x+frameSize.width >= mapScrollX-TILESIZE*2 && position.x <= mapScrollX+RES_W+TILESIZE*2) {
+        //std::cout << "classnpc::move(" << name << ")::IA_type: " << IA_type << std::endl;
+		execute_ai();
 	}
 
     //std::cout << "classnpc::move - position.y: " << position.y << std::endl;
@@ -532,16 +460,11 @@ short classnpc::get_dead_state()
 
 st_rectangle classnpc::get_hit_area()
 {
-    st_rectangle res(GameMediator::get_instance()->get_enemy(_number).sprites[ANIM_TYPE_TELEPORT][0].colision_rect.x, GameMediator::get_instance()->get_enemy(_number).sprites[ANIM_TYPE_TELEPORT][0].colision_rect.y, GameMediator::get_instance()->get_enemy(_number).sprites[ANIM_TYPE_TELEPORT][0].colision_rect.w, GameMediator::get_instance()->get_enemy(_number).sprites[ANIM_TYPE_TELEPORT][0].colision_rect.h);
-    if (state.direction == ANIM_DIRECTION_RIGHT) {
+    st_rectangle res(game_data.game_npcs[_number].sprites[ANIM_TYPE_TELEPORT][0].colision_rect.x, game_data.game_npcs[_number].sprites[ANIM_TYPE_TELEPORT][0].colision_rect.y, game_data.game_npcs[_number].sprites[ANIM_TYPE_TELEPORT][0].colision_rect.w, game_data.game_npcs[_number].sprites[ANIM_TYPE_TELEPORT][0].colision_rect.h);
+    if (state.direction == ANIM_DIRECTION_RIGHT && _have_right_direction_graphics == true) {
         res.x = frameSize.width - res.w - res.x;
     }
-    if (res.w == 0) {
-        res.w = frameSize.width;
-    }
-    if (res.h == 0) {
-        res.h = frameSize.height;
-    }
+    //std::cout << "NPC::get_hit_area - res.x: " << res.x << ", res.y: " << res.y << ", res.w: " << res.w << ", res.h: " << res.h << ", w: " << frameSize.width << ", h: " << frameSize.height << std::endl;
     return res;
 }
 
@@ -550,13 +473,10 @@ void classnpc::death()
     _obj_jump.interrupt();
     _obj_jump.finish();
     dead = true;
-    _auto_respawn_timer = timer.getTimer() + GameMediator::get_instance()->get_enemy(_number).respawn_delay;
-    //std::cout << "classnpc::death" << std::endl;
+    _auto_respawn_timer = timer.getTimer() + game_data.game_npcs[_number].respawn_delay;
+	//std::cout << "classnpc::death" << std::endl;
     if (_ai_state.main_status == IA_STATE_QUAKE_ATTACK) {
         graphLib.set_screen_adjust(st_position(0, 0));
-    }
-    if (is_stage_boss()) {
-        map->clear_animations();
     }
 }
 
@@ -571,14 +491,6 @@ bool classnpc::is_boss()
 void classnpc::set_is_boss(bool set_boss)
 {
     _is_boss = set_boss;
-    if (_is_boss == true) {
-        _screen_blinked = false;
-        _ai_state.initial_position.y = -(frameSize.height+1);
-        position.y = _ai_state.initial_position.y;
-        hitPoints.total = PLAYER_INITIAL_HP;
-        hitPoints.current = hitPoints.total;
-        hit_duration = BOSS_HIT_DURATION;
-    }
 }
 
 bool classnpc::is_player_friend()
@@ -593,12 +505,6 @@ void classnpc::set_stage_boss(bool boss_flag)
     if (boss_flag == true) {
         hitPoints.total = PLAYER_INITIAL_HP;
         hitPoints.current = hitPoints.total;
-        _screen_blinked = false;
-        _ai_state.initial_position.y = -(frameSize.height+1);
-        position.y = _ai_state.initial_position.y;
-        hitPoints.total = PLAYER_INITIAL_HP;
-        hitPoints.current = hitPoints.total;
-        hit_duration = BOSS_HIT_DURATION;
     }
 }
 
@@ -606,8 +512,8 @@ void classnpc::revive()
 {
     //std::cout << "**** classnpc::revive[" << name << " ****" << std::endl;
 	//position.x = start_point.x;
-    //position.y = start_point.y;
-    if (GameMediator::get_instance()->ai_list.at(_number).states[_ai_chain_n].extra_parameter == AI_ACTION_FLY_OPTION_DRILL_DOWN) {
+	//position.y = start_point.y;
+    if (game_data.ai_types[game_data.game_npcs[_number].IA_type].states[_ai_chain_n].extra_parameter == AI_ACTION_FLY_OPTION_DRILL_DOWN) {
         position.y = -TILESIZE;
     }
 	hitPoints.current = hitPoints.total;
@@ -624,7 +530,7 @@ void classnpc::invert_direction()
 	} else {
 		state.direction = ANIM_DIRECTION_LEFT;
 	}
-    _ai_state.main_status = IA_STAND;
+	_ai_state.main_status = IA_STAND;
 }
 
 

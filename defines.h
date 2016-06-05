@@ -1,7 +1,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define FRAMES_PER_SECOND 60
+#define FRAMES_PER_SECOND 35
 
 #define RES_W 320
 #define RES_H 240
@@ -9,13 +9,13 @@
 #define UNUSED(x) (void)x
 
 enum e_PLAYERS {
-    PLAYER_1,
-    PLAYER_2,
-    PLAYER_3,
-    PLAYER_4
+    PLAYER_ROCKBOT,
+    PLAYER_BETABOT,
+    PLAYER_CANDYBOT,
+    PLAYER_KITTYBOT
 };
 
-#define WALK_FRAME_DELAY 150
+#define WALK_FRAME_DELAY 100
 
 // ==================== PHYSICS ==================== //
 
@@ -28,8 +28,13 @@ enum e_PLAYERS {
 
 
 // stages
+/// @TODO: will be recplaced by file_game
+/**
+ * @brief
+ *
+ */
 enum STAGE_LIST {
-    INTRO_STAGE, STAGE1, STAGE2, STAGE3, STAGE4, STAGE5, STAGE6, STAGE7, STAGE8, CASTLE1_STAGE1, CASTLE1_STAGE2, CASTLE1_STAGE3, CASTLE1_STAGE4, CASTLE1_STAGE5, STAGE_COUNT
+    INTRO_STAGE, APEBOT, DAISIEBOT, SEAHORSEBOT, MUMMYBOT, MAGEBOT, DYNAMITEBOT, SPIKEBOT, TECHNOBOT, SKULLCASTLE1, SKULLCASTLE2, SKULLCASTLE3, SKULLCASTLE4, SKULLCASTLE5, STAGE_COUNT
 };
 
 
@@ -37,7 +42,7 @@ enum STAGE_LIST {
  * @brief
  *
  */
-enum COLISION_TYPES { BLOCK_UNBLOCKED, BLOCK_X, BLOCK_Y, BLOCK_XY, BLOCK_STAIR_X, BLOCK_STAIR_Y, BLOCK_WATER, BLOCK_MOVE_LEFT, BLOCK_MOVE_RIGHT, BLOCK_INSIDE_OBJ };
+enum COLISION_TYPES { BLOCK_UNBLOCKED, BLOCK_X, BLOCK_Y, BLOCK_XY, BLOCK_STAIR_X, BLOCK_STAIR_Y, BLOCK_WATER, BLOCK_MOVE_LEFT, BLOCK_MOVE_RIGHT };
 
 /**
  * @brief
@@ -103,38 +108,36 @@ enum ANIM_DIRECTION {
  * @brief
  *
  */
-enum ANIM_TYPE {
-    ANIM_TYPE_STAND,
-    ANIM_TYPE_WALK,
-    ANIM_TYPE_JUMP,
-    ANIM_TYPE_ATTACK,
-    ANIM_TYPE_TELEPORT,
-    ANIM_TYPE_JUMP_ATTACK,
-    ANIM_TYPE_WALK_ATTACK,
-    ANIM_TYPE_HIT,
-    ANIM_TYPE_STAIRS,
-    ANIM_TYPE_STAIRS_SEMI,
-    ANIM_TYPE_STAIRS_ATTACK,
-    ANIM_TYPE_STAIRS_MOVE,
-    ANIM_TYPE_THROW,
-    ANIM_TYPE_TURN,
-    ANIM_TYPE_MOVE_SEMI, // like turn, the start of the movement
-    ANIM_TYPE_WALK_AIR, // for those that can walk on air
-    ANIM_TYPE_INTRO, // for bosses
-    ANIM_TYPE_SPECIAL_ATTACK, // for bosses, charging weapon, etc
-    ANIM_TYPE_SLIDE,
-    ANIM_TYPE_SHIELD,
-    ANIM_TYPE_VERTICAL_TURN,
-    ANIM_TYPE_ATTACK_THROW,
-    ANIM_TYPE_ATTACK_DIAGONAL_UP,
-    ANIM_TYPE_ATTACK_DIAGONAL_DOWN,
-    ANIM_TYPE_ATTACK_UP,
-    ANIM_TYPE_ATTACK_DOWN,
-    ANIM_TYPE_ATTACK_SPECIAL, // (hadouken, shouryuken, etc)
-    ANIM_TYPE_LOOK_UP,
-    ANIM_TYPE_GRAB_WALL,
-    ANIM_TYPE_COUNT
-};
+enum ANIM_TYPE { ANIM_TYPE_STAND,
+				 ANIM_TYPE_WALK,
+				 ANIM_TYPE_JUMP,
+				 ANIM_TYPE_ATTACK,
+				 ANIM_TYPE_TELEPORT,
+				 ANIM_TYPE_JUMP_ATTACK,
+				 ANIM_TYPE_WALK_ATTACK,
+				 ANIM_TYPE_HIT,
+				 ANIM_TYPE_STAIRS,
+				 ANIM_TYPE_STAIRS_SEMI,
+				 ANIM_TYPE_STAIRS_ATTACK,
+				 ANIM_TYPE_STAIRS_MOVE,
+                 ANIM_TYPE_THROW,
+				 ANIM_TYPE_TURN,
+				 ANIM_TYPE_MOVE_SEMI, // like turn, the start of the movement
+				 ANIM_TYPE_WALK_AIR, // for those that can walk on air
+				 ANIM_TYPE_INTRO, // for bosses
+                 ANIM_TYPE_SPECIAL_ATTACK, // for bosses, charging weapon, etc
+                 ANIM_TYPE_SLIDE,
+				 ANIM_TYPE_SHIELD,
+                 ANIM_TYPE_VERTICAL_TURN,
+                 ANIM_TYPE_ATTACK_THROW,
+                 ANIM_TYPE_ATTACK_DIAGONAL_UP,
+                 ANIM_TYPE_ATTACK_DIAGONAL_DOWN,
+                 ANIM_TYPE_ATTACK_UP,
+                 ANIM_TYPE_ATTACK_DOWN,
+                 ANIM_TYPE_ATTACK_SPECIAL, // (hadouken, shouryuken, etc)
+                 ANIM_TYPE_LOOK_UP,
+                 ANIM_TYPE_GRAB_WALL,
+                 ANIM_TYPE_COUNT };
 
 // alguns como attack_trhow e throw; e special attack e attack_special estão repetidos. fica de reserva futura
 
@@ -147,11 +150,35 @@ enum ANIM_TYPE {
 
 #define TILESIZE 16
 
-#define GRAVITY_MAX_SPEED 8
-#define GRAVITY_TELEPORT_MAX_SPEED 12
-
 // for pre-loading
 
+
+/**
+ * @brief
+ *
+ */
+enum INTRO_SURFACES_ENUM {
+    INTRO_SURFACES_PRESENTS, //presents.png
+    INTRO_SURFACES_UPPERLAND, //upperland.png
+	INTRO_SURFACES_CITY_BG, //scenes/city_bg.png
+	INTRO_SURFACES_KANOTUS, //sprites/canotus.png
+	INTRO_SURFACES_ROCKBOT, //sprites/p1.png
+	INTRO_SURFACES_BETABOT, //sprites/p2.png
+	INTRO_SURFACES_LAB_BG, //scenes/lab_intro1.png
+	INTRO_SURFACES_INTRO_SCREEN, //logo.png
+	INTRO_SURFACES_PLAYER_SELECT_BG, //backgrounds/player_select.png
+	INTRO_SURFACES_PLAYER_SELECT_LIGHTS, //backgrounds/lights.png
+	INTRO_SURFACES_CAPSULES, //backgrounds/capsules.png
+	INTRO_SURFACES_ROCKBOT_BIG, //scenes/rockbot.png
+	INTRO_SURFACES_ROCKBOT_BIG_HALF_SLEEP, //scenes/rockbot_half_sleep.png
+	INTRO_SURFACES_ROCKBOT_BIG_FULL_SLEEP, //scenes/rockbot_full_sleep.png
+	INTRO_SURFACES_BETABOT_BIG, //scenes/betabot.png
+	INTRO_SURFACES_KANOTUS_BIG, //scenes/kanotus.png
+
+
+	/// Last line
+	INTRO_SURFACES_COUNT
+};
 
 /**
  * @brief
@@ -184,6 +211,7 @@ enum SFX_LIST {
 	SFX_IMPLOSION,
 	SFX_PLAYER_DEATH,
 	SFX_DESTRIN_SHIP,
+	SFX_TRAIN_CHUNK,
 	SFX_SKULL_CASTLE_INTRO,
 	SFX_PLAYER_CHARGED_SHOT,
 	SFX_CHARGING1,
@@ -192,6 +220,7 @@ enum SFX_LIST {
 	SFX_WATER_ENTER,
 	SFX_WATER_LEAVE,
     SFX_DISAPPEARING_BLOCK,
+    SFX_HADOUKEN_GIRL,
     SFX_SHORYUKEN_GIRL,
     SFX_BEAM,
 	SFX_COUNT // not used as sfx, this is a way to measure size of the enum list
@@ -214,8 +243,6 @@ enum TERRAIN_TYPES {
 	TERRAIN_SAND,
 	TERRAIN_SCROLL_LOCK,
 	TERRAIN_CHECKPOINT,
-    TERRAIN_EASYMODEBLOCK,
-    TERRAIN_HARDMODEBLOCK,
 	TERRAIN_TYPES_COUNT
 };
 
@@ -315,7 +342,7 @@ enum OBJ_STATE {
  * @brief
  *
  */
-enum LINK_TYPES { LINK_HORIZONTAL, LINK_VERTICAL, LINK_TELEPORTER, LINK_FADE_TELEPORT, LINK_TYPE_COUNT };
+enum LINK_TYPES { LINK_HORIZONTAL, LINK_VERTICAL, LINK_TELEPORTER, LINK_BOSS_TELEPORTER, LINK_FINAL_BOSS_ROOM, LINK_TYPE_COUNT };
 
 #define DOOR_MOVE_STEP 2
 
@@ -323,7 +350,7 @@ enum LINK_TYPES { LINK_HORIZONTAL, LINK_VERTICAL, LINK_TELEPORTER, LINK_FADE_TEL
 
 #define PLAYER_INITIAL_HP 28
 
-#define HIT_BLINK_ANIMATION_LAPSE 100
+#define HIT_BLINK_ANIMATION_LAPSE 200
 
 #define WATER_SPEED_MULT 0.9
 
@@ -352,10 +379,6 @@ enum PROJECTILE_TRAJECTORIES {
     TRAJECTORY_TARGET_EXACT,            // will go exactly to the point the target is in
     TRAJECTORY_FALL_BOMB,               // falls until ground then explodes
     TRAJECTORY_LASER,
-    TRAJECTORY_PUSH_BACK,               // pushes player or enemies into opposite direction
-    TRAJECTORY_ARC_SMALL,
-    TRAJECTORY_RING,                    // increases size and on last frame, oponent can pass in the middle
-    TRAJECTORY_LIGHTING,                // appears sequentially in some parts of the screen
 	PROJECTILE_TRAJECTORIES_COUNT };
 
 
@@ -372,40 +395,18 @@ enum EDITOR_MODES {
 	EDITMODE_LINK_DEST,
 	EDITMODE_NPC,
 	EDITMODE_ADDNPC,
+	EDITMODE_STAIRS,
     EDITMODE_OBJECT,
     EDITMODE_SET_BOSS,
     EDITMODE_SET_SUBBOSS,
-    EDITMODE_ANIM_TILE,
-    EDITMODE_OBJECT_LINK_PLACING,
-    EDITMODE_SELECT,
-    EDITMODE_PASTE
+    EDITMODE_OBJECT_LINK_PLACING
 };
-
 
 /**
  * @brief
  *
  */
-enum IA_TYPE_LIST {
-    IA_STAND,
-    IA_WAIT,
-    IA_FOLLOW,
-    IA_ZIGZAG,
-    IA_SIDETOSIDE,
-    IA_BAT,
-    IA_ROOF_SHOOTER,
-    IA_GROUND_SHOOTER,
-    IA_SHOOT_AND_GO,
-    IA_FLY_ZIG_ZAG,
-    IA_BUTTERFLY,
-    IA_HORIZONTAL_GO_AHEAD,
-    IA_HORIZONTAL_TURN,
-    IA_FIXED_JUMPER,
-    IA_SIDE_SHOOTER,
-    IA_GHOST,
-    IA_FISH,
-    IA_DOLPHIN,
-    IA_VERTICAL_ZIGZAG, IA_TYPES_COUNT };
+enum IA_TYPE_LIST { IA_STAND, IA_WAIT, IA_FOLLOW, IA_ZIGZAG, IA_SIDETOSIDE, IA_BAT, IA_ROOF_SHOOTER, IA_GROUND_SHOOTER, IA_SHOOT_AND_GO, IA_FLY_ZIG_ZAG, IA_BUTTERFLY, IA_HORIZONTAL_GO_AHEAD, IA_HORIZONTAL_TURN, IA_FIXED_JUMPER, IA_SIDE_SHOOTER, IA_GHOST, IA_FISH, IA_DOLPHIN, IA_VERTICAL_ZIGZAG, IA_TYPES_COUNT };
 
 
 /**
@@ -451,9 +452,7 @@ enum IA_CONDITIONALS {
 	IA_CONDITION_UNDER_PLAYER
 };
 
-#define AI_MAX_STATES 20
-#define MAX_AI_REACTIONS 6
-
+#define AI_MAX_STATES 8
 
 /**
  * @brief
@@ -473,16 +472,20 @@ enum e_energy_types { ENERGY_TYPE_HP, ENERGY_TYPE_WEAPON };
 #define MAX_WEAPON_N 12
 #define MAX_STAGES 16
 #define MAX_MAP_NPC_N 30
+#define GAME_MAX_OBJS 60
 #define STAGE_MAX_LINKS 30
 #define STAGE_MAX_MAPS 3
+#define MAX_AI_TYPES 50
+#define MAX_AI_REACTIONS 3
 
 #define CHAR_NAME_SIZE 30
+#define CHAR_FILENAME_SIZE 30
 
 #define MAX_FILE_PLAYERS 5
 
 #define MAX_FILE_PROJECTILES 20
 
-#define PROJECTILE_DEFAULT_SPEED 6
+#define PROJECTILE_DEFAULT_SPEED 10
 #define PROJECTILE_DEFAULT_DAMAGE 1
 #define PROJECTILE_DEFAULT_ANIMATION_TIME 100
 
@@ -535,35 +538,33 @@ enum e_game_flags {
 	FLAG_INFINITE_JUMP,
 	FLAG_ALLWEAPONS,
     FLAG_INFINITE_HP,
-    FLAG_PLAYER1,
-    FLAG_PLAYER2,
-    FLAG_PLAYER3,
-    FLAG_PLAYER4,
+    FLAG_PLAYER_ROCKBOT,
+    FLAG_PLAYER_BETABOT,
+    FLAG_PLAYER_CANDYBOT,
+    FLAG_PLAYER_KITTYBOT,
 	FLAG_COUNT
 };
 
 
+/**
+ * @brief
+ *
+ */
 enum AI_ACTION_LIST {
 	AI_ACTION_WALK,
 	AI_ACTION_FLY,
 	AI_ACTION_JUMP,
 	AI_ACTION_WAIT_UNTIL_PLAYER_IS_IN_RANGE,
 	AI_ACTION_SAVE_POINT,
-    AI_ACTION_SHOT_PROJECTILE_AHEAD,
-    AI_ACTION_SHOT_PROJECTILE_PLAYER_DIRECTION,
-    AI_ACTION_SHOT_PROJECTILE_INVERT_DIRECTION,
+	AI_ACTION_SHOT_PROJECTILE_1,
+	AI_ACTION_SHOT_PROJECTILE_2,
+	AI_ACTION_SHOT_INVERT_PROJECTILE_1,
 	AI_ACTION_AIR_WALK,
 	AI_ACTION_FALL_TO_GROUND,
 	AI_ACTION_TELEPORT,
 	AI_ACTION_DASH,
 	AI_ACTION_GRAB_WALL,
     AI_ACTION_SPAWN_NPC,
-    AI_ACTION_CHANGE_MOVE_TYPE,
-    AI_ACTION_REPLACE_NPC,                          // similar to spawn npc, but removes itself
-    AI_ACTION_CIRCLE_PLAYER,
-    AI_ACTION_CHANGE_MOVE_TYPE_REVERSE,
-    AI_ACTION_JUMP_ATTACK_UP,
-    AI_ACTION_JUMP_ATTACK_AHEAD_ONCE,
 	AI_ACTION_LIST_SIZE
 };
 
@@ -573,7 +574,23 @@ enum AI_ACTION_SHOT_OPTIONS {
     AI_ACTION_SHOT_AHEAD
 };
 
+/*
+enum AI_ACTION_OPTIONS_LIST {
+    AI_OPTIONS_HORIZONTAL_AHEAD,
+    AI_OPTIONS_HORIZONTAL_TURN,
+	AI_OPTIONS_UP,
+	AI_OPTIONS_DOWN,
+	AI_OPTIONS_TO_PLAYER,
+	AI_OPTIONS_TO_SAVED_POINT,
+	AI_OPTIONS_TO_ROOF,
+	AI_OPTIONS_LIST_SIZE
+};
+*/
 
+/**
+ * @brief
+ *
+ */
 enum AI_ACTION_GOTO_LIST {
 	AI_ACTION_GOTO_CHANCE,
 	AI_ACTION_GOTO_1,
@@ -592,10 +609,7 @@ enum AI_ACTION_WALK_OPTION_LIST {
     AI_ACTION_WALK_OPTION_HORIZONTAL_TURN, // execute turn animation, ends when animation is compelted
     AI_ACTION_WALK_OPTION_TO_PLAYER,
     AI_ACTION_WALK_OPTION_TO_SAVED_POINT,
-    AI_ACTION_WALK_OPTION_TURN_TO_PLAYER,
-    AI_ACTION_WALK_OPTION_TO_RANDOM_DIRECTION,
-
-    AI_ACTION_WALK_OPTION_COUNT
+    AI_ACTION_WALK_OPTION_TURN_TO_PLAYER
 };
 
 
@@ -656,8 +670,7 @@ enum AI_ACTION_TELEPORT_OPTION_LIST {
     AI_ACTION_TELEPORT_OPTION_TO_PLAYER,
     AI_ACTION_TELEPORT_OPTION_RANDOM_X,
     AI_ACTION_TELEPORT_OPTION_RANDOM_Y,
-    AI_ACTION_TELEPORT_OPTION_RANDOM_POINT,
-    AI_ACTION_TELEPORT_OPTION_AHEAD
+    AI_ACTION_TELEPORT_OPTION_RANDOM_POINT
 };
 
 /**
@@ -709,7 +722,6 @@ enum colision_modes {
 
 
 #define FONT_SIZE 8
-#define FONT_SIZE_SMALL 8
 
 #define MENU_CHANGE_DELAY 100
 
@@ -735,8 +747,7 @@ enum COLOR_KEYS {
 enum e_VIDEO_FILTERS {
     VIDEO_FILTER_NOSCALE,
     VIDEO_FILTER_BITSCALE,
-    VIDEO_FILTER_SCALE2x,
-    VIDEO_FILTER_COUNT
+    VIDEO_FILTER_SCALE2x
 };
 
 #define BOSS_HIT_DURATION 800
@@ -749,12 +760,15 @@ enum e_VIDEO_FILTERS {
 #define COLOR_COUNT 68
 
 // filesystem defines
+#define FS_GAME_MAX_OBJS 40
+#define FS_GAME_MAX_NPCS 100
+#define FS_MAX_PROJECTILES 30
 #define FS_MAX_WEAPONS 20
 #define FS_MAX_PLAYERS 4
+#define FS_MAX_AI_TYPES 50
 #define FS_MAX_STAGES 20
 
 #define FS_CHAR_NAME_SIZE 30
-#define FS_CHAR8_NAME_SIZE 8
 #define FS_CHAR_FILENAME_SIZE 30
 #define FS_INI_KEY_SIZE 30
 
@@ -767,6 +781,8 @@ enum e_VIDEO_FILTERS {
 #define FS_MAX_MAP_NPCS 30
 #define FS_MAX_MAP_OBJECTS 30
 
+#define FS_COLORCYCLE_MAX_ITEMS 10
+
 #define FS_NPC_WEAKNESSES 9
 
 #define FS_DIALOG_LINES 3
@@ -778,10 +794,16 @@ enum e_VIDEO_FILTERS {
 #define FS_NPC_PROJECTILE_N 2
 
 
-#define FS_PLAYER_ARMOR_PIECES_MAX 50 // allow more pieces in the future
 enum e_ARMOR_PIECES {
-    ARMOR_ARMS, ARMOR_BODY, ARMOR_LEGS
+    ARMOR_ARMS, ARMOR_BODY, ARMOR_LEGS, FS_PLAYER_ARMOR_PIECES_MAX
 };
+
+/*
+void armor_edit::fill_armor_abilities() {
+    std::string arm_abilities[] = {"Super-Shot", "Laser-Beam", "Always-Charged", "Freeze"};
+    std::string legs_abilities[] = {"Double Jump", "Air-Dash", "Wall-Grab"};
+    std::string body_abilities[] = {"Half-Damage", "Extended Immunity", "Spikes Immune", "No Push-Back"};
+ */
 
 enum e_ARMOR_ABILITIES_ARMS {
     ARMOR_ABILITY_ARMS_SUPERSHOT, ARMOR_ABILITY_ARMS_LASERBEAM, ARMOR_ABILITY_ARMS_ALWAYSCHARGED, ARMOR_ABILITY_ARMS_MISSILE
@@ -793,185 +815,27 @@ enum e_ARMOR_ABILITIES_BODY {
     ARMOR_ABILITY_BODY_HALFDAMAGE, ARMOR_ABILITY_BODY_EXTENDEDIMMUNITY, ARMOR_ABILITY_BODY_SPIKESIMMMUNE, ARMOR_ABILITY_BODY_NOPUSHBACK
 };
 
+#define FS_ANIM_TILES_MAX 20
+
 #define FS_FACE_FILENAME_MAX 20
 #define FS_PLATER_ITEMS_N 2
 
 #define SPIKES_DAMAGE 999
 
-#define CURRENT_FILE_FORMAT format_v4
+#define CURRENT_FILE_FORMAT format_v_3_0_1
+
+#define EDITMODE_NORMAL 0
+#define EDITMODE_LOCK 1
+#define EDITMODE_ERASER 2
+#define EDITMODE_FILL 3
+#define EDITMODE_LINK 4
+#define EDITMODE_LINK_DEST 5
+#define EDITMODE_NPC 6
+#define EDITMODE_ADDNPC 7
+#define EDITMODE_STAIRS 8
+#define EDITMODE_OBJECT 9
 
 
-#define LINE_H_DIFF 15
-
-#define VIDEO_MODE_COLORS 16
-
-#define COLORKEY1_R 55
-#define COLORKEY1_G 255
-#define COLORKEY1_B 0
-
-#define COLORKEY2_R 255
-#define COLORKEY2_G 0
-#define COLORKEY2_B 255
-
-#define COLORKEY3_R 0
-#define COLORKEY3_G 255
-#define COLORKEY3_B 255
-
-#define ANIM_TILE_MAX_FRAMES 10
-
-// --- STRINGS BEGIN --- //
-#define STRINGS_LINE_SIZE 60
-
-enum E_STRINGS_INGAME {
-    strings_ingame_newgame,
-    strings_ingame_loadgame,
-    strings_ingame_config,
-    strings_ingame_about,
-    strings_ingame_password,
-    strings_ingame_gameover,
-    strings_ingame_and,
-    strings_ingame_selectgame,
-    strings_ingame_savegameerror1,
-    strings_ingame_savegameerror2,
-    strings_ingame_savegameerror3,
-    strings_ingame_copyrightline,
-    strings_ingame_audio,
-    strings_ingame_input,
-    strings_ingame_video,
-    strings_ingame_leavestage,
-    strings_ingame_video_windowed,
-    strings_ingame_video_fullscreen,
-    strings_ingame_video_noscale,
-    strings_ingame_video_size2x,
-    strings_ingame_video_scale2x,
-    strings_ingame_config_restart1,
-    strings_ingame_config_restart2,
-    strings_ingame_config_restart3,
-    strings_ingame_config_presstorestart,
-    strings_ingame_pressanykey,
-    strings_ingame_config_set,
-    strings_ingame_config_key_up,
-    strings_ingame_config_key_down,
-    strings_ingame_config_key_left,
-    strings_ingame_config_key_right,
-    strings_ingame_config_key_jump,
-    strings_ingame_config_key_dash,
-    strings_ingame_config_key_fire,
-    strings_ingame_config_key_start,
-    strings_ingame_config_key_keyl,
-    strings_ingame_config_key_keyr,
-    strings_ingame_config_key_pressnew,
-    strings_ingame_config_key_reset,
-    strings_ingame_config_key_directional,
-    strings_ingame_config_key_directional_analog,
-    strings_ingame_config_key_directional_digital,
-    strings_ingame_passwordinvalid,
-    strings_ingame_pressstart,
-    strings_ingame_engineerror,
-    strings_ingame_nogames,
-    strings_ingame_quitgame,
-    strings_ingame_yes,
-    strings_ingame_no,
-    strings_ingame_life,
-    strings_ingame_item,
-    strings_ingame_gotarmor_type_ability,
-    strings_ingame_gotarmor_type_arms,
-    strings_ingame_gotarmor_type_arms_msg1,
-    strings_ingame_gotarmor_type_arms_msg2,
-    strings_ingame_gotarmor_type_arms_msg3,
-    strings_ingame_gotarmor_type_arms_msg4,
-    strings_ingame_gotarmor_type_legs,
-    strings_ingame_gotarmor_type_legs_msg1,
-    strings_ingame_gotarmor_type_legs_msg2,
-    strings_ingame_gotarmor_type_legs_msg3,
-    strings_ingame_gotarmor_type_legs_msg4,
-    strings_ingame_gotarmor_type_body,
-    strings_ingame_gotarmor_type_body_msg1,
-    strings_ingame_gotarmor_type_body_msg2,
-    strings_ingame_gotarmor_type_body_msg3,
-    strings_ingame_gotarmor_type_body_msg4,
-
-    strings_ingame_difficulty_select,
-    strings_ingame_difficulty_easy,
-    strings_ingame_difficulty_normal,
-    strings_ingame_difficulty_hard,
-
-    strings_ingame_config_input_selected_joystick,
-    strings_ingame_config_input_buttons,
-    strings_ingame_config_input_turbo_mode,
-
-    strings_ingame_config_on,
-    strings_ingame_config_off,
-    strings_ingame_config_quitgame,
-    strings_ingame_armor,
-    strings_ingame_config_audio_volume_music,
-    strings_ingame_config_audio_volume_sfx,
-    strings_ingame_config_enabled,
-    strings_ingame_config_disabled,
-
-    strings_ingame_ready_message,
-
-    strings_ingame_config_select_player,
-
-    strings_ingame_config_press_start_to_select,
-
-    strings_ingame_manual,
-    strings_ingame_mode,
-    strings_ingame_video_scale_mode,
-
-    strings_ingame_COUNT
-};
-
-
-enum E_DIFFICULTY_MODES  {
-    DIFFICULTY_EASY,
-    DIFFICULTY_NORMAL,
-    DIFFICULTY_HARD,
-    DIFFICULTY_COUNT
-};
-
-#define FS_COMMONSTRING_ID_SIZE 30
-#define FS_COMMON_STRINGS_DIALOG 27
-#define FS_COMMON_ITEMS_MAX 50
-
-
-#define EDITOR_ANIM_PALETE_MAX_COL 8
-
-// --- STRINGS  END --- //
-
-
-#define FS_ANIM_TILE_MAX_FRAMES 6 // is we want to use more than 6 frames, we are doing it wrong...
-
-enum E_BG_SCROLL_MODE {
-    BG_SCROLL_MODE_NONE,
-    BG_SCROLL_MODE_UP,
-    BG_SCROLL_MODE_DOWN,
-    BG_SCROLL_MODE_LEFT,
-    BG_SCROLL_MODE_RIGHT,
-    BG_SCROLL_MODE_DIAGONAL
-};
-
-
-enum e_SCREEN_GFX {
-    SCREEN_GFX_NONE,
-    SCREEN_GFX_RAIN,
-    SCREEN_GFX_SNOW,
-    SCREEN_GFX_WATER,
-    SCREEN_GFX_TRAIN,
-    SCREEN_GFX_FLASH,
-    SCREEN_GFX_COUNT
-};
-
-
-#define PLAYER_RIGHT_TO_LEFT_DIFF 5
-#define PLAYER_LEFT_TO_RIGHT_DIFF 5
-
-#define TOP_STARS_LIMIT 65
-#define BOTTOM_STARS_LIMIT 175
-
-#define CHAR_OBJ_COLISION_KILL_ADJUST 4
-
-//#define SHOW_HITBOXES 1
 
 #endif // DEFINES_H
 

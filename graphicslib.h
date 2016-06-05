@@ -15,8 +15,8 @@
 
 #include "defines.h"
 #include "file/format/st_common.h"
+#include "class_colorcycle.h"
 #include "file/format.h"
-#include "game_mediator.h"
 
 #ifdef PSP
 #include "ports/psp/psp_ram.h"
@@ -32,29 +32,6 @@
 // SDL, you can clone this class and use other platform-specific methods          //
 // ****************************************************************************** //
 
-
-enum e_flip_type {
-    flip_type_horizontal,
-    flip_type_vertical,
-    flip_type_both
-};
-
-struct anim_tile_timer {
-    unsigned long timer;                        // timer animation was last executed
-    Uint8 frame_pos;                            // current frame animation is
-    Uint8 max_frames;                           // maximum number of frames this anim-tile have
-    int frames_delay[ANIM_TILE_MAX_FRAMES];     // the delay for each animation frame TBD
-    anim_tile_timer(int frames_n, unsigned long time_set) {
-        timer = time_set;
-        frame_pos = 0;
-        max_frames = frames_n;
-
-        /// @TODO, set those times
-        for (int i=0; i<ANIM_TILE_MAX_FRAMES; i++) {
-            frames_delay[i] = 150;
-        }
-    }
-};
 
 
 /**
@@ -92,18 +69,22 @@ public:
      */
     void updateScreen();
 
-    void loadTileset(std::string file);
 
+    int get_colorkey_n(COLOR_KEYS key);
+
+    /**
+     * @brief
+     *
+     */
+    void loadTileset();
+    /**
+     * @brief
+     *
+     * @param st_position
+     * @param st_position
+     * @param
+     */
     void placeTile(struct st_position, struct st_position, struct graphicsLib_gSurface*);
-
-    void place_easymode_block_tile(st_position destiny, graphicsLib_gSurface &surface);
-
-    void place_hardmode_block_tile(st_position destiny, graphicsLib_gSurface &surface);
-
-
-    void place_anim_tile(int anim_tile_id, struct st_position pos_destiny, struct graphicsLib_gSurface* dest_surface);
-
-    void update_anim_tiles_timers();
 
     void place_3rd_level_tile(int origin_x, int origin_y, int dest_x, int dest_y);
 
@@ -128,6 +109,9 @@ public:
      */
     void copyArea(struct st_rectangle rect, struct st_position, struct graphicsLib_gSurface*, struct graphicsLib_gSurface*);
 
+
+    // to be used in spceial cases when colormap issues happen as transitionscreen in game.cpp
+    void copy_area_with_colormap_update(struct st_rectangle origin_rectangle, struct st_position pos, struct graphicsLib_gSurface* surfaceOrigin, struct graphicsLib_gSurface* surfaceDestiny);
 
     /**
      * @brief
@@ -159,7 +143,19 @@ public:
      * @param
      */
     void showSurface(struct graphicsLib_gSurface*);
-
+    /**
+     * @brief
+     *
+     * @param surfaceOrigin
+     * @param origin_rectangle
+     */
+    void showMapSurfaceRegion(struct graphicsLib_gSurface* surfaceOrigin, st_rectangle origin_rectangle);
+    /**
+     * @brief
+     *
+     * @param
+     * @param origin_rectangle
+     */
     void showSurfaceRegion(struct graphicsLib_gSurface*, const struct st_rectangle origin_rectangle);
     /**
      * @brief
@@ -197,9 +193,13 @@ public:
     void show_white_surface_at(struct graphicsLib_gSurface*, struct st_position);
 
     void initSurface(struct st_size, graphicsLib_gSurface *);
-
-    void set_surface_alpha(int alpha, graphicsLib_gSurface &surface);
-
+    /**
+     * @brief
+     *
+     * @param st_rectangle
+     * @param
+     * @return graphicsLib_gSurface
+     */
     struct graphicsLib_gSurface surfaceFromRegion(struct st_rectangle, struct graphicsLib_gSurface&);
     /**
      * @brief
@@ -230,10 +230,6 @@ public:
      * @param text
      */
     void draw_text(short int x, short int y, std::string text);
-
-    void draw_text(short int x, short int y, std::string text, st_color color);
-
-
     /**
      * @brief
      *
@@ -268,7 +264,7 @@ public:
      * @param b
      * @return int
      */
-    Uint8 getColorNumber(Uint8 r, Uint8 g, Uint8 b);
+    int getColorNumber(int r, int g, int b);
     /**
      * @brief
      *
@@ -288,7 +284,7 @@ public:
      * @param g
      * @param b
      */
-    void blink_screen(Uint8 r, Uint8 g, Uint8 b);
+    void blink_screen(int r, int g, int b);
     /**
      * @brief
      *
@@ -308,9 +304,6 @@ public:
      * @param active
      */
     void draw_weapon_icon(short, st_position menu_pos, bool active);
-
-    void draw_weapon_tooltip_icon(short weapon_n, st_position position);
-
     /**
      * @brief
      *
@@ -336,7 +329,7 @@ public:
      * @param current_hp
      * @param player_frame
      */
-    void draw_weapon_menu_bg(Uint8 current_hp, graphicsLib_gSurface *player_frame, short max_hp);
+    void draw_weapon_menu_bg(Uint8 current_hp, graphicsLib_gSurface *player_frame);
 
     /**
      * @brief
@@ -345,7 +338,7 @@ public:
      * @param player_n
      * @param weapon_n
      */
-    void draw_hp_bar(short int hp, short player_n, short weapon_n, short int max_hp);
+    void draw_hp_bar(short int hp, short player_n, short weapon_n);
     /**
      * @brief
      *
@@ -395,10 +388,6 @@ public:
      * @param surface
      */
     void blank_area(short int x, short int y, short int w, short int h, struct graphicsLib_gSurface& surface);
-
-
-    void draw_rectangle(st_rectangle area, int r, int g, int b, int alpha);
-
     /**
      * @brief
      *
@@ -410,13 +399,37 @@ public:
      */
 
     void clear_surface_area(short int x, short int y, short int w, short int h, short int r, short int g, short int b, struct graphicsLib_gSurface& surface) const;
+    /**
+     * @brief
+     *
+     * @param color_key
+     * @param new_color
+     */
+    void change_colormap(unsigned int color_key, st_color new_color);
+    /**
+     * @brief
+     *
+     * @param map_n
+     */
+    void set_colormap(int map_n);
+
+    void execute_colorcycle();
+
+    /**
+     * @brief
+     *
+     */
+    void reset_colormap();
+
+    void reset_image_colormap(graphicsLib_gSurface &surface);
+
 
     /**
      * @brief
      *
      * @param position
      */
-    void show_config_bg(Uint8 position);
+    void show_config_bg(int position);
     /**
      * @brief
      *
@@ -424,17 +437,20 @@ public:
      * @param hp
      * @param player_n
      */
-    void draw_weapon_cursor(st_position old_pos, short hp, short player_n, short max_hp);
+    void draw_weapon_cursor(st_position old_pos, short hp, short player_n);
     /**
      * @brief
      *
      * @param position
      * @param show_btn
      */
-    void show_dialog(Uint8 position);
-
-    void show_dialog_button(Uint8 position);
-
+    void show_dialog(int position, bool show_btn=false);
+    /**
+     * @brief
+     *
+     * @param face_file
+     * @param pos
+     */
     void place_face(std::string face_file, st_position pos);
     /**
      * @brief
@@ -442,10 +458,22 @@ public:
      * @return st_position
      */
     st_position get_dialog_pos() const;
-
-
-    void change_surface_color(Sint8 colorkey_n, st_color new_color, struct graphicsLib_gSurface* surface);
-
+    /**
+     * @brief
+     *
+     * @param key
+     * @param new_color
+     * @param surface
+     */
+    void change_surface_color(st_color key, st_color new_color, struct graphicsLib_gSurface* surface);
+    /**
+     * @brief
+     *
+     * @param key_n
+     * @param new_color
+     * @param surface
+     */
+    void change_surface_color(int key_n, st_color new_color, struct graphicsLib_gSurface* surface);
     /**
      * @brief
      *
@@ -496,6 +524,26 @@ public:
      *
      * @param surface
      */
+    void set_colormap_white(struct graphicsLib_gSurface* surface);
+    /**
+     * @brief
+     *
+     * @param surface
+     */
+    void set_colormap_original(struct graphicsLib_gSurface* surface);
+
+
+    /**
+     * @brief
+     *
+     * @param surface
+     */
+    void set_colormap_current(struct graphicsLib_gSurface* surface);
+
+    void set_colormap_current_tileset();
+
+    void set_colormap_original_tileset();
+
     /**
      * @brief
      *
@@ -504,7 +552,7 @@ public:
      * @param hp
      * @param player_n
      */
-    void draw_horizontal_hp_bar(short int y_adjust, short int right, short int hp, short int player_n, short max_hp);
+    void draw_horizontal_hp_bar(short int y_adjust, short int right, short int hp, short int player_n=3);
     /**
      * @brief
      *
@@ -521,53 +569,152 @@ public:
      * @brief
      *
      */
-
+    void reset_tileset_colormap();
+    /**
+     * @brief
+     *
+     * @param initial_point
+     * @param final_point
+     * @param duration
+     */
     void draw_path(st_position initial_point, st_position final_point, short duration);
-    graphicsLib_gSurface flip_image(graphicsLib_gSurface original, e_flip_type flip_mode);
+
+
+    void preload_stage_colorcycle();
+
+    void add_stage_colorcycle(short stage_n, CURRENT_FILE_FORMAT::file_colorcycle &colorcycle);
+
+    void update_colors();
+
+    void update_surface_colormap(graphicsLib_gSurface *display_surface);
+
 
 
 private:
+    /**
+     * @brief
+     *
+     * @param st_rectangle
+     * @param st_position
+     * @param
+     * @param
+     * @param fix_colors
+     */
     void copySDLArea(struct st_rectangle, struct st_position, SDL_Surface*, SDL_Surface*, bool fix_colors);
+    /**
+     * @brief
+     *
+     * @param st_rectangle
+     * @param st_rectangle
+     * @param
+     * @param
+     */
     void copySDLPortion(struct st_rectangle, struct st_rectangle, SDL_Surface*, SDL_Surface*);
+    /**
+     * @brief
+     *
+     * @param filename
+     * @return SDL_Surface
+     */
     SDL_Surface *SDLSurfaceFromFile(std::string filename);
+    /**
+     * @brief
+     *
+     * @param src
+     * @param dst
+     * @param smooth_scale
+     */
     void scale2x(SDL_Surface *src, SDL_Surface *dst, bool smooth_scale) const;
-    void draw_horizontal_hp_bar(st_position pos, short int hp, short int player_n, short max_hp);
+    /**
+     * @brief
+     *
+     * @param pos
+     * @param hp
+     * @param player_n
+     */
+    void draw_horizontal_hp_bar(st_position pos, short int hp, short int player_n=3);
+    /**
+     * @brief
+     *
+     * @param player_n
+     * @param weapon_n
+     */
     void draw_vertical_hp_bar(short int player_n, short int weapon_n);
+    /**
+     * @brief
+     *
+     * @param x
+     * @param y
+     * @param size
+     */
     void draw_star(short int x, short int y, int size);
+    /**
+     * @brief
+     *
+     * @param x
+     * @param y
+     * @param size
+     */
     void erase_star(short int x, short int y, int size);
+    /**
+     * @brief
+     *
+     */
     void preload_faces() const;
+    /**
+     * @brief
+     *
+     */
     void unload_faces() const;
+    /**
+     * @brief
+     *
+     */
     void init_stars();
+    /**
+     * @brief
+     *
+     */
     void anim_stars();
+    /**
+     * @brief
+     *
+     * @param fullscreen
+     */
     void set_video_mode();
+    /**
+     * @brief
+     *
+     */
     void preload_images();
-    void preload_anim_tiles();
+
+    void update_surface_colormap(SDL_Surface *display_surface, SDL_Color set_colormap[COLOR_COUNT]);
 
 
 
 
 public:
-    int RES_DIFF_W;
-    int RES_DIFF_H;
-    struct graphicsLib_gSurface gameScreen;
-    st_position big_star_list[INTRO_STARS_NUMBER/2];
-    st_position star_list[INTRO_STARS_NUMBER];
-    st_position small_star_list[INTRO_STARS_NUMBER];
+    int RES_DIFF_W; /**< TODO */
+    int RES_DIFF_H; /**< TODO */
+    struct graphicsLib_gSurface gameScreen; /**< TODO */
+    st_position big_star_list[INTRO_STARS_NUMBER/2]; /**< TODO */
+    st_position star_list[INTRO_STARS_NUMBER]; /**< TODO */
+    st_position small_star_list[INTRO_STARS_NUMBER]; /**< TODO */
 
 	// graphics used in several places
-    graphicsLib_gSurface small_explosion;
-    std::vector<graphicsLib_gSurface> projectile_surface;
-    graphicsLib_gSurface bomb_explosion_surface;
-    graphicsLib_gSurface e_tank[2];
-    graphicsLib_gSurface w_tank[2];
-    graphicsLib_gSurface s_tank[2];
-    graphicsLib_gSurface energy_balancer;
+    graphicsLib_gSurface small_explosion; /**< TODO */
+    graphicsLib_gSurface projectile_surface[FS_MAX_PROJECTILES]; /**< TODO */
+    graphicsLib_gSurface bomb_explosion_surface; /**< TODO */
+    graphicsLib_gSurface e_tank[2]; /**< TODO */
+    graphicsLib_gSurface w_tank[2]; /**< TODO */
+    graphicsLib_gSurface s_tank[2]; /**< TODO */
+    graphicsLib_gSurface energy_balancer; /**< TODO */
 
-    graphicsLib_gSurface explosion32;
-    graphicsLib_gSurface explosion16;
-    graphicsLib_gSurface dash_dust;
-    graphicsLib_gSurface hit;
-    graphicsLib_gSurface water_splash;
+    graphicsLib_gSurface explosion32; /**< TODO */
+    graphicsLib_gSurface explosion16; /**< TODO */
+    graphicsLib_gSurface dash_dust; /**< TODO */
+    graphicsLib_gSurface hit; /**< TODO */
+    graphicsLib_gSurface water_splash; /**< TODO */
 
     graphicsLib_gSurface armor_icon_arms;
     graphicsLib_gSurface armor_icon_body;
@@ -576,49 +723,46 @@ public:
 
 private:
 
-    std::map<std::string, graphicsLib_gSurface> FACES_SURFACES;
-
-    std::vector<struct graphicsLib_gSurface> ANIM_TILES_SURFACES;   // hold animated-tiles surface
-    std::vector<struct anim_tile_timer> ANIM_TILES_TIMERS;
-
+    SDL_Color colormap[COLOR_COUNT]; /**< TODO */
+    SDL_Color colormap_original[COLOR_COUNT]; /**< TODO */
+    SDL_Color colormap_white[COLOR_COUNT]; /**< TODO */
+    class_colorcycle colorcycle_manager; /**< TODO */
+    unsigned int color_keys[3]; /**< TODO */
+    std::map<std::string, graphicsLib_gSurface> FACES_SURFACES; /**< TODO */
 	// TODO: free those pointers
-    TTF_Font *font;
-    TTF_Font *lowercase_font;
+    TTF_Font *font; /**< TODO */
+    TTF_Font *lowercase_font; /**< TODO */
+    SDL_Surface *game_screen;									// we do not put this into a graphicsLib_gSurface because this is meant to be used only internally /**< TODO */
+    SDL_Surface *game_screen_scaled; /**< TODO */
+    SDL_Surface *tileset;										// we do not put this into a graphicsLib_gSurface because this is meant to be used only internally /**< TODO */
+    std::vector<struct graphicsLib_gSurface> faces;				// faces for players and npcs /**< TODO */
+    std::vector<struct graphicsLib_gSurface> weapon_icons;		// weapon icons, used in menu and energy bars /**< TODO */
+    std::vector<struct graphicsLib_gSurface> small_weapon_icons;		// weapon icons, used in menu and energy bars /**< TODO */
+    std::vector<struct graphicsLib_gSurface> item_icons;		// item icons, used in menu and energy bars /**< TODO */
 
-    SDL_Surface *game_screen;									// we do not put this into a graphicsLib_gSurface because this is meant to be used only internally
-    SDL_Surface *game_screen_scaled;
-    SDL_Surface *tileset;										// we do not put this into a graphicsLib_gSurface because this is meant to be used only internally
-    std::vector<struct graphicsLib_gSurface> faces;				// faces for players and npcs
-    std::vector<struct graphicsLib_gSurface> weapon_icons;		// weapon icons, used in menu and energy bars
-    std::vector<struct graphicsLib_gSurface> small_weapon_icons;		// weapon icons, used in menu and energy bars
-    std::vector<struct graphicsLib_gSurface> item_icons;		// item icons, used in menu and energy bars
+    struct graphicsLib_gSurface ingame_menu; /**< TODO */
+    struct graphicsLib_gSurface config_menu; /**< TODO */
+    struct graphicsLib_gSurface dialog_surface; /**< TODO */
+    struct graphicsLib_gSurface _btn_a_surface; /**< TODO */
 
-    struct graphicsLib_gSurface ingame_menu;
-    struct graphicsLib_gSurface config_menu;
-    struct graphicsLib_gSurface dialog_surface;
-    struct graphicsLib_gSurface _btn_a_surface;
+    st_position _dialog_pos; /**< TODO */
+    st_position _config_menu_pos; /**< TODO */
 
-    struct graphicsLib_gSurface _easymode_block;
-    struct graphicsLib_gSurface _hardmode_block;
+    unsigned int stars_timer; /**< TODO */
 
-    st_position _dialog_pos;
-    st_position _config_menu_pos;
+    st_position _screen_adjust; /**< TODO */
 
-    unsigned int stars_timer;
+    SDL_PixelFormat screen_pixel_format; /**< TODO */
 
-    st_position _screen_adjust;
+    bool _show_stars; /**< TODO */
 
-    SDL_PixelFormat screen_pixel_format;
-
-    bool _show_stars;
-
-    unsigned int _explosion_animation_timer;
-    int _explosion_animation_pos;
-    int _debug_msg_pos;
-    st_position _screen_resolution_adjust;
-    Uint8 _video_filter;                                     // copy from game_options, so graphlib isn't affected when the option is changed while game running
+    unsigned int _explosion_animation_timer; /**< TODO */
+    int _explosion_animation_pos; /**< TODO */
+    int _debug_msg_pos; /**< TODO */
+    st_position _screen_resolution_adjust; /**< TODO */
+    bool _must_set_colors;
+    short int _video_filter;                                     // copy from game_options, so graphlib isn't affected when the option is changed while game running
     long _timer;
-    st_color color_keys[3];                                 // holds the 3 color-keys we use for changing colors
 
 
 #ifdef PSP

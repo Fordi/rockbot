@@ -39,17 +39,13 @@ private slots:
 
 	void on_damage_valueChanged(int arg1);
 
-    void on_pushButton_clicked();
-
-    void on_sfxFilename_comboBox_currentIndexChanged(const QString &arg1);
-
 private:
     void fill_data();
     void set_edit_data(int index);
     
 private:
     Ui::projectile_edit *ui;
-    bool data_loading;
+	bool _ignore_name_change;
 };
 
 #endif // PROJECTILE_EDIT_H

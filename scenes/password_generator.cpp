@@ -11,54 +11,54 @@ password_matrix password_generator::run()
 {
     reset();
 
-    if (game_save.selected_player == PLAYER_2) {
+    if (game_save.selected_player == PLAYER_BETABOT) {
         matrix.value[1][0] = PASSWORD_BALL_COLOR_RED;
-    } else if (game_save.selected_player == PLAYER_3) {
+    } else if (game_save.selected_player == PLAYER_CANDYBOT) {
         matrix.value[1][0] = PASSWORD_BALL_COLOR_BLUE;
-    } else if (game_save.selected_player == PLAYER_4) {
+    } else if (game_save.selected_player == PLAYER_KITTYBOT) {
         matrix.value[2][1] = PASSWORD_BALL_COLOR_BLUE;
     }
 
-    if (game_save.stages[STAGE8] == 1) {
+    if (game_save.stages[TECHNOBOT] == 1) {
         matrix.value[5][3] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[STAGE2] == 1) {
+    if (game_save.stages[DAISIEBOT] == 1) {
         matrix.value[5][5] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[STAGE4] == 1) {
+    if (game_save.stages[MUMMYBOT] == 1) {
         matrix.value[3][2] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[STAGE7] == 1) {
+    if (game_save.stages[SPIKEBOT] == 1) {
         matrix.value[4][5] = PASSWORD_BALL_COLOR_BLUE;
     }
 
 
-    if (game_save.stages[CASTLE1_STAGE1] == 1) {
+    if (game_save.stages[SKULLCASTLE1] == 1) {
         matrix.value[0][0] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[CASTLE1_STAGE2] == 1) {
+    if (game_save.stages[SKULLCASTLE2] == 1) {
         matrix.value[1][1] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[CASTLE1_STAGE3] == 1) {
+    if (game_save.stages[SKULLCASTLE3] == 1) {
         matrix.value[4][0] = PASSWORD_BALL_COLOR_BLUE;
     }
-    if (game_save.stages[CASTLE1_STAGE4] == 1) {
+    if (game_save.stages[SKULLCASTLE4] == 1) {
         matrix.value[4][2] = PASSWORD_BALL_COLOR_BLUE;
     }
 
     if (game_save.stages[INTRO_STAGE] == 1) {
         matrix.value[0][2] = PASSWORD_BALL_COLOR_RED;
     }
-    if (game_save.stages[STAGE5] == 1) {
+    if (game_save.stages[MAGEBOT] == 1) {
         matrix.value[2][0] = PASSWORD_BALL_COLOR_RED;
     }
-    if (game_save.stages[STAGE6] == 1) {
+    if (game_save.stages[DYNAMITEBOT] == 1) {
         matrix.value[4][1] = PASSWORD_BALL_COLOR_RED;
     }
-    if (game_save.stages[STAGE3] == 1) {
+    if (game_save.stages[SEAHORSEBOT] == 1) {
         matrix.value[2][3] = PASSWORD_BALL_COLOR_RED;
     }
-    if (game_save.stages[STAGE1] == 1) {
+    if (game_save.stages[APEBOT] == 1) {
         matrix.value[3][5] = PASSWORD_BALL_COLOR_RED;
     }
 

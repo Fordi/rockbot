@@ -50,9 +50,6 @@ public:
      * @return bool
      */
     bool showIntro();
-
-    void show_notice();
-
     /**
      * @brief
      *
@@ -61,21 +58,21 @@ public:
 
 
     void update_stage_scrolling();
-    void showGame(bool can_characters_move, bool can_scroll_stage);
+    void showGame(bool can_characters_move=true);
     /**
      * @brief
      *
      * @param st_position
      * @return int
      */
-    Uint8 getMapPointLock(struct st_position);
+    int getMapPointLock(struct st_position);
 
     /**
      * @brief
      *
      * @return st_position
      */
-    st_float_position checkScrolling();
+    st_position checkScrolling();
     /**
      * @brief
      *
@@ -101,8 +98,8 @@ public:
      */
     void leave_stage();
 
-    void game_pause();
-    void game_unpause();
+
+    void leave_game();
 
     /**
      * @brief
@@ -135,14 +132,14 @@ public:
      *
      * @param player_n
      */
-    void show_player();
+    void show_player(short int player_n);
     /**
      * @brief
      *
      * @param pos
      * @param player_n
      */
-    void set_player_position(st_position pos);
+    void set_player_position(st_position pos, short int player_n);
 
     /**
      * @brief
@@ -151,41 +148,41 @@ public:
      * @param yinc
      * @param player_n
      */
-    void change_player_position(short xinc, short yinc);
+    void change_player_position(short xinc, short yinc, short player_n);
     /**
      * @brief
      *
      * @param anim_type
      * @param player_n
      */
-    void set_player_anim_type(ANIM_TYPE anim_type);
+    void set_player_anim_type(ANIM_TYPE anim_type, short int player_n);
     /**
      * @brief
      *
      * @param player_n
      * @return st_position
      */
-    st_position get_player_position();
+    st_position get_player_position(short int player_n);
     /**
      * @brief
      *
      * @param player_n
      * @return st_size
      */
-    st_size get_player_size();
+    st_size get_player_size(short int player_n);
     /**
      * @brief
      *
      * @param direction
      * @param player_n
      */
-    void set_player_direction(Uint8 direction);
+    void set_player_direction(short int direction, short int player_n);
     /**
      * @brief
      *
      * @param player_n
      */
-    void player_fall();
+    void player_fall(short int player_n);
     /**
      * @brief
      *
@@ -211,12 +208,12 @@ public:
      *
      * @return bool
      */
-    bool must_show_boss_hp();
+    bool must_show_boss_hp() const;
     /**
      * @brief
      *
      */
-    void fill_boss_hp_bar();
+    void fill_boss_hp_bar() const;
 
 
     void fill_player_weapon(short weapon_n);
@@ -225,7 +222,7 @@ public:
      * @brief
      *
      */
-    void reset_stage_maps();
+    void reset_stage_maps() const;
     /**
      * @brief
      *
@@ -240,7 +237,7 @@ public:
      * @brief
      *
      */
-    void show_map();
+    void show_map() const;
     /**
      * @brief
      *
@@ -251,21 +248,28 @@ public:
     /**
      * @brief
      *
+     * @param n
+     * @return classPlayer
+     */
+    classPlayer* get_player(int n);
+    /**
+     * @brief
+     *
      * @return st_position
      */
-    st_float_position get_current_stage_scroll();
+    st_position get_current_stage_scroll() const;
     /**
      * @brief
      *
      */
-    void reset_scroll();
+    void reset_scroll() const;
     /**
      * @brief
      *
      * @param type
      * @return short
      */
-    short get_drop_item_id(short type);
+    short get_drop_item_id(short type) const;
     /**
      * @brief
      *
@@ -278,21 +282,20 @@ public:
      */
     bool show_config(short finished_stage);
 
+
+    void unload_stage();
+
     void show_savegame_error();
 
     void showGotArmorDialog(e_ARMOR_PIECES armor_type);
 
-    void object_teleport_boss(st_position dest_pos, Uint8 dest_map, Uint8 teleporter_id);
+    void object_teleport_boss(st_position dest_pos, int dest_map, int teleporter_id);
 
     void remove_current_teleporter_from_list(); // used when player dies
 
-    std::string select_game_screen();
+
 
 private:
-    void exit_game();
-
-
-
     /**
      * @brief
      *
@@ -308,7 +311,7 @@ private:
     void start_stage();
 
 
-    void show_ready();
+    void show_ready() const;
 
     /**
      * @brief
@@ -325,13 +328,13 @@ private:
      * @param adjust_x
      * @param pObj
      */
-    void transition_screen(Uint8 type, Uint8 map_n, short int adjust_x, classPlayer *pObj);
+    void transitionScreen(short int type, short int map_n, short int adjust_x, classPlayer *pObj);
     /**
      * @brief
      *
      * @return short
      */
-    Uint8 get_current_map();
+    short int get_current_map() const;
     /**
      * @brief
      *
@@ -347,7 +350,7 @@ private:
      */
     void set_player_teleporter(short set_teleport_n, st_position set_player_pos, bool is_object);
 
-    bool is_player_on_teleporter();
+    bool is_player_on_teleporter() const;
 
     void finish_player_teleporter();
 
@@ -358,30 +361,30 @@ private:
 
 
 public:
-    Uint8 currentStage;
-    bool is_showing_boss_intro;
+    int currentStage; /**< TODO */
+    bool is_showing_boss_intro; /**< TODO */
 
 
 private:
-    stage loaded_stage;
-    classPlayer player1;
-    scenesLib scenes;
-    unsigned int fps_timer;
-    int fps_counter;
-    std::stringstream fps_msg;
-    char _fps_buffer[128];
-    struct CURRENT_FILE_FORMAT::st_game_config config;
-    st_position selected_stage;
-    class_config config_manager;
-    dialogs game_dialogs;
+    stage* loaded_stage; /**< TODO */
+    std::vector<classPlayer> players; /**< TODO */
+    scenesLib scenes; /**< TODO */
+    unsigned int fps_timer; /**< TODO */
+    int fps_counter; /**< TODO */
+    std::stringstream fps_msg; /**< TODO */
+    char _fps_buffer[128]; /**< TODO */
+    struct CURRENT_FILE_FORMAT::st_game_config config; /**< TODO */
+    st_position selected_stage; /**< TODO */
+    class_config config_manager; /**< TODO */
+    dialogs game_dialogs; /**< TODO */
 	// framerate timers
-    float _frame_duration;
-    std::map<short, bool> _last_stage_used_teleporters; // list of used teleportes (they do not work anymore after added to this list)
+    float _frame_duration; /**< TODO */
+    std::map<short, bool> _last_stage_used_teleporters; // list of used teleportes (they do not work anymore after added to this list) /**< TODO */
     used_teleporter _player_teleporter;
-    bool _show_boss_hp; // after set to true, will keep showing the boss HP bar on screen right side
+    bool _show_boss_hp; // after set to true, will keep showing the boss HP bar on screen right side /**< TODO */
 
     short _drop_item_list[DROP_ITEM_COUNT];
-    bool invencible_old_value; // used to store flag value in order we don't loose it when setting to true due to temporary "got weapon" invencibility
+    bool invencible_old_value; // used to store flag value in order we don't loose it when setting to true due to temporary "got weapon" invencibility /**< TODO */
     bool _dark_mode;                    // on dark mode we only show animation and projectiles
 
 #ifdef PSP

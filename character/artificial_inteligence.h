@@ -63,8 +63,6 @@ public:
      */
     void ground_damage_players();
 
-    void push_back_players(short direction);
-
     bool auto_respawn() const;
 
     // NEW AI
@@ -95,8 +93,6 @@ protected:
 
 
     void ia_action_jump_once();
-
-    void ia_action_jump_up();
 
     /**
      * @brief
@@ -156,11 +152,9 @@ protected:
     void execute_ai_step_jump_to_wall();
 
 
-    void execute_ai_replace_itself();
+
 
     void execute_ai_step_spawn_npc();
-
-    void execute_ai_circle_player();
 
     void ia_action_teleport();
 
@@ -196,25 +190,15 @@ protected:
      */
     void execute_ai_action_trow_projectile(Uint8 n, bool invert_direction);
 
-    bool throw_projectile(int projectile_type, bool invert_direction);
-
     /**
      * @brief
      */
     void execute_ai_step_fly();
 
-    void execute_ai_save_point();
-
     /**
      * @brief
      */
     void execute_ai_step_dash();
-
-    void execute_ai_step_change_animation_type();
-
-    void execute_ai_step_change_animation_type_reverse();
-
-
 
     /**
      * @brief moves to a point, returns true when point was reached or can't reach the target
@@ -255,15 +239,17 @@ protected:
 
 
     struct_ia_state _ai_state; /**< TODO */
+    bool is_ghost;										// if can shoot or not /**< TODO */
 
 
 	// "external" members
     static std::vector<character*> *player_list;					// reference to the players list /**< TODO */
+    int IA_type;										// IA types: no_move, wait, attack, zig-zag (loop), side to side (origin to direction) /**< TODO */
     unsigned int _ai_timer;										// used to not execute AI before a while /**< TODO */
     short _ai_chain_n;							// indicates witch one of the four AI actions is the NPC on /**< TODO */
     short _ghost_move_speed_reducer;           // some NPCs walk slowly when throught walls
     struct st_position start_point; /**< TODO */
-    unsigned int _auto_respawn_timer;                            // used to check if enought time has passed to auto-respawn
+    Uint16 _auto_respawn_timer;                            // used to check if enought time has passed to auto-respawn
 
     trajectory_parabola *_trajectory_parabola;          // used for jumping to a specific point
     bool _did_shot;                                         // used to avoid shooting multiple times
@@ -276,12 +262,8 @@ protected:
     bool _initialized;                                  // used to indicated that is not yet initialized, thus we need to get change to pick next action
     int _counter;                                       // used for counting times, such as how many shots were fired
     int _current_ai_type;                               // holds the current AI type, can be changed to another one if needed (as jumping over obstacles)
+    int _ai_id;                                         // holds the ID of the AI the NPC uses
     bool _show_reset_stand;
-    st_position _target_point;							// used to store player position in circle player
-    float _angle;                                         // used to store angle in circle movement
-    int _execution_state;                               // controlw flow of execution
-    int radius;
-    short int jump_attack_type;                               // used by jump attack to store attack-type, if any. otherwise, it is set as -1
 };
 
 #endif // ARTIFICIAL_INTELIGENCE_H

@@ -7,19 +7,13 @@
 #include <iostream>
 #include <vector>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <stdio.h>
-
 #ifdef WII
 #include <fat.h>
 #endif
 
-#include "file/fio_common.h"
 
-extern std::string FILEPATH;
-extern std::string SAVEPATH;
+extern std::string FILEPATH; /**< TODO */
+
 
 /**
  * @brief
@@ -32,51 +26,202 @@ public:
 
 };
 
+
+
+
+namespace format_v_2_1_1 {
+    /**
+     * @brief
+     *
+     */
+    class file_io
+    {
+    public:
+/**
+ * @brief
+ *
+ */
+        file_io();
+        /**
+         * @brief
+         *
+         * @param data_out
+         */
+        void read_game(format_v_2_1_1::file_game& data_out) const;
+        /**
+         * @brief
+         *
+         * @param data_in
+         */
+        void write_game(format_v_2_1_1::file_game& data_in) const;
+
+        /**
+         * @brief
+         *
+         * @param stages_data_in
+         */
+        void write_all_stages(format_v_2_1_1::file_stages& stages_data_in) const;
+        /**
+         * @brief
+         *
+         * @param stages_data_out
+         */
+        void read_all_stages(format_v_2_1_1::file_stages& stages_data_out) const;
+        /**
+         * @brief
+         *
+         * @param stages_data_out
+         * @param stage_n
+         */
+        void read_stage(format_v_2_0_3::file_stage& stages_data_out, short stage_n) const;
+    };
+}
+
+
+
+
+namespace format_v_2_1_2 {
+    /**
+     * @brief
+     *
+     */
+    class file_io
+    {
+    public:
+/**
+ * @brief
+ *
+ */
+        file_io();
+        /**
+         * @brief
+         *
+         * @param data_out
+         */
+        void read_game(format_v_2_1_2::file_game& data_out) const;
+        /**
+         * @brief
+         *
+         * @param data_in
+         */
+        void write_game(format_v_2_1_2::file_game& data_in) const;
+
+        /**
+         * @brief
+         *
+         * @param stages_data_in
+         */
+        void write_all_stages(format_v_2_1_2::file_stages& stages_data_in) const;
+        /**
+         * @brief
+         *
+         * @param stages_data_out
+         */
+        void read_all_stages(file_stages &stages_data_out);
+        /**
+         * @brief
+         *
+         * @param stages_data_out
+         * @param stage_n
+         */
+        void read_stage(file_stage& stages_data_out, short stage_n);
+
+        bool file_exists(std::string filename) const;
+
+        void check_conversion() const;
+
+        bool write_save(format_v_2_1_2::st_save& data_in);
+        void read_save(format_v_2_1_2::st_save& data_out) const;
+        bool save_exists() const;
+
+        void load_config(st_game_config &config);
+        void save_config(st_game_config &config) const;
+
+        int read_stage_boss_id(int stage_n);
+
+
+    };
+}
+
+
+namespace format_v_3_0_0 {
+    class file_io {
+
+    public:
+        file_io();
+        void read_game(format_v_3_0_0::file_game& data_out) const;
+        void write_game(format_v_3_0_0::file_game& data_in) const;
+        void write_all_stages(format_v_3_0_0::file_stages& stages_data_in) const;
+        void read_all_stages(file_stages &stages_data_out);
+        void read_stage(file_stage& stages_data_out, short stage_n);
+
+        bool file_exists(std::string filename) const;
+
+        void check_conversion() const;
+
+        bool write_save(format_v_3_0_0::st_save& data_in);
+        void read_save(format_v_3_0_0::st_save& data_out) const;
+        bool save_exists() const;
+
+        void load_config(st_game_config &config);
+        void save_config(st_game_config &config) const;
+        int read_stage_boss_id(int stage_n, file_stage &stages_data_out);
+
+        void read_colormap(SDL_Color (&colormap)[COLOR_COUNT]);
+
+        void load_scene_sequence(std::vector<format_v_3_0_0::file_scene_sequence>& scene_sequence);
+        void save_scene_sequence(std::vector<format_v_3_0_0::file_scene_sequence>& scene_sequence);
+
+        void load_scenes(std::vector<format_v_3_0_0::file_scene>& scenes);
+        void save_scenes(std::vector<format_v_3_0_0::file_scene>& scenes);
+
+
+    private:
+        std::vector<std::string> split(std::string str,std::string sep);
+
+
+    };
+}
+
 // ************************************************************************************************************* //
 
-namespace format_v4 {
+namespace format_v_3_0_1 {
 
     class file_io {
 
     public:
         file_io();
-        void read_game(file_game& data_out) const;
-        void write_game(file_game& data_in) const;
-        // stages
-        void write_all_stages(file_stages& stages_data_in) const;
-        void read_all_stages(file_stages &stages_data_out);
-        void read_stage(file_stage& stages_data_out, short stage_n);
-        // maps
-        void read_all_maps(file_map (&data_out)[FS_MAX_STAGES][FS_STAGE_MAX_MAPS]);
-        void write_all_maps(file_map (&data_in)[FS_MAX_STAGES][FS_STAGE_MAX_MAPS]);
-        void read_stage_maps(int stage_id, file_map (&data_out)[FS_STAGE_MAX_MAPS]);
+        void read_game(format_v_3_0_1::file_game& data_out) const;
+        void write_game(format_v_3_0_1::file_game& data_in) const;
+        void write_all_stages(format_v_3_0_1::file_stages& stages_data_in) const;
+        void read_all_stages(format_v_3_0_1::file_stages &stages_data_out);
+        void read_stage(format_v_3_0_1::file_stage& stages_data_out, short stage_n);
 
         bool file_exists(std::string filename) const;
-        std::vector<std::string> read_game_list() const;
-        std::vector<std::string> read_directory_list(std::string filename, bool dir_only) const;
-        std::vector<std::string> read_file_list(std::string filename) const;
 
-        bool write_save(st_save& data_in);
-        void read_save(st_save& data_out) const;
+        void check_conversion() const;
+
+        bool write_save(format_v_3_0_1::st_save& data_in);
+        void read_save(format_v_3_0_1::st_save& data_out) const;
         bool save_exists() const;
 
-        void load_config(st_game_config &config);
-        void save_config(st_game_config &config) const;
-        int read_stage_boss_id(Uint8 stage_n, file_stage &stages_data_out);
+        void load_config(format_v_3_0_1::st_game_config &config);
+        void save_config(format_v_3_0_1::st_game_config &config) const;
+        int read_stage_boss_id(int stage_n, format_v_3_0_1::file_stage &stages_data_out);
 
-        void generate_files();
+        void read_colormap(SDL_Color (&colormap)[COLOR_COUNT]);
 
-        int get_heart_pieces_number(st_save game_save);
+        void load_scene_sequence(std::vector<format_v_3_0_1::file_scene_sequence>& scene_sequence);
+        void save_scene_sequence(std::vector<format_v_3_0_1::file_scene_sequence>& scene_sequence);
 
-#ifdef WII
-        void wii_convert_game_data(file_game& data_out);
-        void wii_convert_map_data(file_map (&data_out)[FS_STAGE_MAX_MAPS]);
-#endif
+        void load_scenes(std::vector<format_v_3_0_1::file_scene>& scenes);
+        void save_scenes(std::vector<format_v_3_0_1::file_scene>& scenes);
 
 
     private:
+        std::vector<std::string> split(std::string str,std::string sep);
         std::string sufix;
-        fio_common fio_cmm;
+
 
     };
 }

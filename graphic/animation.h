@@ -20,7 +20,7 @@ enum ANIMATION_TYPES {
 class animation
 {
 public:
-    animation(ANIMATION_TYPES pos_type, graphicsLib_gSurface* surface, const st_float_position &pos, st_position adjust_pos, unsigned int frame_time, unsigned int repeat_times, int direction, st_size framesize, st_float_position* map_scroll);
+    animation(ANIMATION_TYPES pos_type, graphicsLib_gSurface* surface, const st_float_position &pos, st_position adjust_pos, unsigned int frame_time, unsigned int repeat_times, int direction, st_size framesize, st_position* map_scroll);
     ~animation();
 
     st_float_position get_position() const;
@@ -36,32 +36,44 @@ public:
      */
     void execute();
 
-    void set_initial_delay(int delay);
-
 private:
     const st_float_position* _ref_pos; /**< holds a pointer to the position it must follow in dynamic animation type */
     ANIMATION_TYPES _pos_type;
     st_float_position _static_pos;
-    st_position _adjust_pos;
+    st_position _adjust_pos; /**< TODO */
     graphicsLib_gSurface* _surface; /**< holds graphic surface */
     Uint8 _repeat_times; /**< number of times the whole frames will be shown */
     Uint8 _executed_times; /**< holds the number of times the whole frames were shown. if greater or equals to _repeat_times, set is_finished to true */
-    int _frame_time;
-    bool _finished;
-    Uint8 _frames_number;
-    Uint8 _direction;
-    st_size _framesize;
+    int _frame_time; /**< TODO */
+    bool _finished; /**< TODO */
+    int _frames_number; /**< TODO */
+    int _direction; /**< TODO */
+    st_size _framesize; /**< TODO */
 
-    Uint8 _current_frame;
-    int _current_frame_timer;
-    Uint8 _max_repeat;
-    Uint8 _repeated_times;
-    st_float_position* _map_scroll;
-
-    int initial_timer;
+    Uint8 _current_frame; /**< TODO */
+    int _current_frame_timer; /**< TODO */
+    Uint8 _max_repeat; /**< TODO */
+    Uint8 _repeated_times; /**< TODO */
+    st_position* _map_scroll; /**< TODO */
 };
 
 
+class simple_animation {
+public:
+    simple_animation(std::string filename, int repeat_times, int delay, int width, st_position pos);
+    void execute();
+    void set_position(st_position new_pos);
 
+private:
+    int _repeat_times;
+    int _delay;
+    int _width;
+    int _timer;
+    int _max_frames;
+    Uint8 _frame_n;
+    st_position _pos;
+    graphicsLib_gSurface _surface;
+
+};
 
 #endif // ANIMATION_H

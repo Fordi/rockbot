@@ -25,13 +25,13 @@ public:
      *
      * @param stage
      */
-    void show_stage_dialog(int stage_n);
+    void show_stage_dialog();
     /**
      * @brief
      *
      * @param stage
      */
-    void show_boss_dialog(int stage_n);
+    void show_boss_dialog();
     /**
      * @brief
      *
@@ -63,9 +63,11 @@ private:
      *
      * @param show_btn
      */
-    void draw_dialog_bg();
+    void draw_dialog_bg(bool show_btn);
 
 private:
+    std::string player_name; /**< TODO */
+    std::string player_face; /**< TODO */
     bool is_showing_dialog_bg; /**< TODO */
 };
 

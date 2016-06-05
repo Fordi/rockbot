@@ -1,6 +1,5 @@
 #include "inputlib.h"
 
-#include<iostream>
 #include <SDL/SDL_joystick.h>
 
 extern SDL_Event event;
@@ -16,8 +15,6 @@ extern game gameControl;
 
 extern CURRENT_FILE_FORMAT::st_game_config game_config;
 
-extern bool leave_game;
-
 // ********************************************************************************************** //
 //                                                                                                //
 // ********************************************************************************************** //
@@ -25,22 +22,25 @@ inputLib::inputLib() : _used_keyboard(false)
 {
 	for (int i=0; i<BTN_COUNT; i++) {
 		p1_input[i] = 0;
+		p2_input[i] = 0;
 	}
     _show_btn_debug = false;
-    turbo_timer = 0;
-    turbo_state = false;
 }
 
 void inputLib::init_joystick()
 {
-    SDL_JoystickEventState(SDL_ENABLE);
-    joystick1 = SDL_JoystickOpen(game_config.selected_input_device);
-}
-
-void inputLib::change_joystick()
-{
-    SDL_JoystickClose(joystick1);
-    joystick1 = SDL_JoystickOpen(game_config.selected_input_device);
+	SDL_JoystickEventState(SDL_ENABLE);
+	joystick1 = SDL_JoystickOpen(0);
+    joystick2 = SDL_JoystickOpen(1);
+// gamecube controller init
+#ifdef WII
+    for (int i=7; i>= 4; i--) {
+        SDL_Joystick *joy = SDL_JoystickOpen(i);
+        if (joy) {
+            printf(">>>>>>>>>>>>>>>>>> init controller #%d <<<<<<<<<<<<<<<<<<<<<<\n", i);
+        }
+    }
+#endif
 }
 
 // ********************************************************************************************** //
@@ -48,25 +48,14 @@ void inputLib::change_joystick()
 // ********************************************************************************************** //
 void inputLib::clean()
 {
-    //std::cout << "INPUT::CLEAN CALL" << std::endl;
 	for (int i=0; i<BTN_COUNT; i++) {
-        if (i != BTN_ATTACK) { // don't clean attack to save charging
-            p1_input[i] = 0;
-        }
+		p1_input[i] = 0;
+		p2_input[i] = 0;
 	}
     while (SDL_PollEvent(&event)) {
         SDL_PumpEvents(); // check keyboard events
     }
-}
 
-void inputLib::clean_all()
-{
-    for (int i=0; i<BTN_COUNT; i++) {
-        p1_input[i] = 0;
-    }
-    while (SDL_PollEvent(&event)) {
-        SDL_PumpEvents(); // check keyboard events
-    }
 }
 
 
@@ -77,8 +66,6 @@ void inputLib::clean_all()
 void inputLib::readInput()
 {
     _used_keyboard = false;
-
-
     while (SDL_PollEvent(&event)) {
 
         if (_show_btn_debug == false) {
@@ -87,8 +74,6 @@ void inputLib::readInput()
 
         if (game_config.input_type == INPUT_TYPE_DOUBLE || game_config.input_type == INPUT_TYPE_KEYBOARD) {
             if (event.type == SDL_KEYDOWN) {
-
-
                 for (int i=0; i<BTN_COUNT; i++) {
                     if (game_config.keys_codes[i] != -1 && game_config.keys_codes[i] == event.key.keysym.sym) {
                         p1_input[i] = 1;
@@ -101,7 +86,6 @@ void inputLib::readInput()
             } else if (event.type == SDL_KEYUP) {
                 for (int i=0; i<BTN_COUNT; i++) {
                     if (game_config.keys_codes[i] != -1 && game_config.keys_codes[i] == event.key.keysym.sym) {
-                        //if (i == BTN_ATTACK) std::cout << "INPUT::readInput::KEYUP::ATTACK" << std::endl;
                         p1_input[i] = 0;
                         _used_keyboard = true;
                         if (i == BTN_JUMP) {
@@ -114,7 +98,8 @@ void inputLib::readInput()
 #if !defined(PLAYSTATION2) && !defined(PSP) && !defined(WII) && !defined(DREAMCAST)
             if (event.type == SDL_QUIT) {
                 std::cout << "LEAVE #1" << std::endl;
-                leave_game = true;
+                std::fflush(stdout);
+                gameControl.leave_game();
             }
 #endif
         }
@@ -139,7 +124,6 @@ void inputLib::readInput()
                 //std::cout << "#2 INPUT::readInput - joystick button[" << event.jbutton.button << "] released" << std::endl;
                 for (int i=0; i<BTN_COUNT; i++) {
                     if (game_config.button_codes[i] != -1 && game_config.button_codes[i] == event.jbutton.button) {
-                        if (i == BTN_ATTACK) std::cout << "INPUT::readInput::BUTTONUP::ATTACK" << std::endl;
                         p1_input[i] = 0;
                         if (i == BTN_JUMP) {
                             p1_input[BTN_JUMP_TIMER] = 0;
@@ -243,20 +227,6 @@ void inputLib::readInput()
 #endif
         }
     }
-
-    if (game_config.turbo_mode == true && p1_input[BTN_ATTACK] != 0) {
-        int now_timer = timer.getTimer();
-        if (now_timer > turbo_timer) {
-            if (turbo_state == false) {
-                turbo_state = true;
-                p1_input[BTN_ATTACK] = 2;
-            } else {
-                turbo_state = false;
-                p1_input[BTN_ATTACK] = 1;
-            }
-            turbo_timer = now_timer + 100;
-        }
-    }
 }
 
 
@@ -298,12 +268,13 @@ int inputLib::waitScapeTime(int wait_period) {
 
 	while (now_time < wait_period) {
 		readInput();
-        if (p1_input[BTN_START] == 1) {
+		if (p1_input[BTN_START] == 1 || p2_input[BTN_START] == 1) {
 			return 1;
-        } else if (p1_input[BTN_QUIT] == 1) {
+        } else if (p1_input[BTN_QUIT] == 1 || p2_input[BTN_QUIT] == 1) {
 #if !defined(PLAYSTATION2) && !defined(PSP) && !defined(WII) && !defined(DREAMCAST)
             std::cout << "LEAVE #2" << std::endl;
-            leave_game = true;
+            std::fflush(stdout);
+            gameControl.leave_game();
 #endif
 		}
 		now_time = timer.getTimer();
@@ -320,7 +291,7 @@ void inputLib::wait_keypress()
     bool fim = false;
     while (!fim) {
         readInput();
-        if (p1_input[BTN_START] == 1 || p1_input[BTN_JUMP] == 1) {
+		if (p1_input[BTN_START] == 1 || p2_input[BTN_JUMP] == 1 || p1_input[BTN_JUMP] == 1 || p2_input[BTN_JUMP]) {
             fim = true;
         }
         graphLib.updateScreen();
@@ -355,9 +326,4 @@ bool inputLib::pick_key_or_button(CURRENT_FILE_FORMAT::st_game_config &game_conf
         waitTime(5);
     }
     return false;
-}
-
-int inputLib::get_joysticks_number()
-{
-    return SDL_NumJoysticks();
 }

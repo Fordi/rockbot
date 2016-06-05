@@ -2,24 +2,25 @@
 #include <cmath>
 #include "jump.h"
 
-
-// if not interrupted, jump takes 700 milisseconds
-// jump max high is 74 px
-
-#define JUMP_INITIAL_SPEED 5.375
+#define JUMP_INITIAL_SPEED 11
 
 
 classjump::classjump() : started(false)
 {
-    JUMP_ACCELERATION = 0.26;
+    JUMP_ACCELERATION = 1.001;
     JUMP_LIMIT = (TILESIZE*3)-6;
-    JUMP_LIMIT = 240;
     state = NOJUMP;
     jumps_number = 0;
 }
 
 void classjump::start(bool bigjump_mode)
 {
+    /*
+    if (started == true) {
+        std::cout << "ERROR::jump::start - can't start jumping unless you have double-jump" << std::endl;
+        return;
+    }
+    */
     started = true;
     state = JUMPUP;
     is_bigjump = bigjump_mode;
@@ -30,9 +31,6 @@ void classjump::start(bool bigjump_mode)
     }
     jumps_number++;
     speed = -JUMP_INITIAL_SPEED;
-
-    //std::cout << "CLASSJUMP::START::speed: " << speed << std::endl;
-
     moved = 0;
 }
 
@@ -44,27 +42,27 @@ bool classjump::is_started()
 void classjump::execute()
 {
     if (!started) {
+        //std::cout << "ERROR::jump::execute - trying to jump but not started" << std::endl;
         return;
     }
-
-
-    //std::cout << "CLASSJUMP::EXECUTE[#1]::speed: " << speed << std::endl;
+    //std::cout << "classjump::execute - speed.pre[" << speed << "]";
     speed += acceleration;
     moved += std::abs((double)speed);
-
-    //std::cout << "CLASSJUMP::EXECUTE[#2]::speed: " << speed << std::endl;
+    //std::cout << ", speed.pos[" << speed << "], acceleration[" << acceleration << "]" << std::endl;
 
     if (state == JUMPUP) {
         if (speed >= 0) {
+            //std::cout << ">>>> RESET JUMP[SPEED] - moved: " << moved << std::endl;
             state = JUMPDOWN;
         } else if (is_bigjump == false && std::abs((double)moved) > JUMP_LIMIT) { // hardcoded limit of 3 tiles
             state = JUMPDOWN;
-            std::cout << "OBJUMP RESET SPEED #3" << std::endl;
             speed = 0;
+            //std::cout << ">>>> RESET JUMP[LIMIT] - moved: " << moved << ", LIMIT: " << JUMP_LIMIT << std::endl;
         }
     } else {
-        if (speed > GRAVITY_MAX_SPEED) { // do not surpass the speed limit
-            speed = GRAVITY_MAX_SPEED;
+        if (speed > JUMP_INITIAL_SPEED) { // do not surpass the speed limit
+            speed = JUMP_INITIAL_SPEED;
+            //jumps_number--; // count as finished
         }
     }
 }
@@ -72,11 +70,12 @@ void classjump::execute()
 void classjump::interrupt()
 {
     if (!started) {
+        //std::cout << "ERROR::jump::execute - trying to interrupt jump but not started" << std::endl;
         return;
     }
     if (state != JUMPUP) {
+        //std::cout << "ERROR::jump::execute - trying to interrupt jump not going up" << std::endl;
         state = JUMPDOWN;
-        std::cout << "OBJUMP RESET SPEED #4" << std::endl;
         speed = 0;
         return;
     }
@@ -86,7 +85,6 @@ void classjump::interrupt()
     }
 
     state = JUMPDOWN;
-
     speed = 0;
 }
 
@@ -94,12 +92,11 @@ void classjump::finish()
 {
     jumps_number = 0;
     state = NOJUMP;
-
     speed = 0;
     started = false;
 }
 
-float classjump::get_speed()
+int classjump::get_speed()
 {
     return speed;
 }

@@ -35,13 +35,17 @@ class_config::class_config() : ingame_menu_active(false)
 void class_config::set_player_ref(classPlayer* set_player_ref)
 {
 	player_ref = set_player_ref;
+	if (_player_surface.width == 0) {
+		graphLib.initSurface(st_size(player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0)->width, player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0)->height), &_player_surface);
+		graphLib.copyArea(st_position(0, 0), player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0), &_player_surface);
+	}
 }
 
 
 // column1: normal, ape,    daisie, dynamite, mummy,     spike
 // column2:         techno, mage,   seahorse, item coil, item jet
 // column3: e-tank, w-tank *(must be changed, as currently are two rows)
-void class_config::move_cursor(Sint8 x_inc, Sint8 y_inc) {
+void class_config::move_cursor(int x_inc, int y_inc) {
 	// left/right: if position exists, just move. if not then go to first item in nexct column or stays in place
 	bool moved = false;
     st_position res;
@@ -222,9 +226,21 @@ st_position class_config::move_weapon_curstor_down()
 
 }
 
-void class_config::weapon_menu_show_player()
+void class_config::change_player_frame_color()
 {
-    graphLib.copyArea(st_position(26, 195), player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0), &graphLib.gameScreen);
+	short int selected_weapon = convert_menu_pos_to_weapon_n(ingame_menu_pos);
+    CURRENT_FILE_FORMAT::file_weapon_colors colors = player_ref->get_weapon_colors(selected_weapon);
+
+	if (colors.color1.r != -1) {
+		graphLib.change_surface_color(player_ref->get_color_key(0), colors.color1, &_player_surface);
+	}
+	if (colors.color2.r != -1) {
+		graphLib.change_surface_color(player_ref->get_color_key(1), colors.color2, &_player_surface);
+	}
+	if (colors.color3.r != -1) {
+		graphLib.change_surface_color(player_ref->get_color_key(2), colors.color3, &_player_surface);
+	}
+	graphLib.copyArea(st_position(26, 190), &_player_surface, &graphLib.gameScreen);
 }
 
 void class_config::use_tank(int tank_type)
@@ -253,7 +269,8 @@ void class_config::use_tank(int tank_type)
 				soundManager.play_sfx(SFX_GOT_ENERGY);
 			}
 			n++;
-            graphLib.draw_weapon_cursor(st_position(0, 0), player_ref->get_hp().current, -1, player_ref->get_max_hp());
+			//graphLib.draw_horizontal_hp_bar(WPN_COLUMN_Y, 2, player_ref->get_hp().current);
+			graphLib.draw_weapon_cursor(st_position(0, 0), player_ref->get_hp().current, -1);
             draw_lib.update_screen();
 			input.waitTime(50);
 		}
@@ -271,7 +288,7 @@ void class_config::use_tank(int tank_type)
 						soundManager.play_sfx(SFX_GOT_ENERGY);
 					}
 					n++;
-                    graphLib.draw_weapon_cursor(weapon_pos, player_ref->get_weapon_value(i), -1, player_ref->get_max_hp());
+					graphLib.draw_weapon_cursor(weapon_pos, player_ref->get_weapon_value(i), -1);
                     draw_lib.update_screen();
 					input.waitTime(50);
 				}
@@ -300,9 +317,9 @@ void class_config::use_tank(int tank_type)
 void class_config::draw_ingame_menu()
 {
     ingame_menu_pos = convert_stage_n_to_menu_pos(player_ref->get_selected_weapon());
-    graphLib.draw_weapon_menu_bg(player_ref->get_current_hp(), player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0), player_ref->get_max_hp());
+    graphLib.draw_weapon_menu_bg(player_ref->get_current_hp(), player_ref->get_char_frame(ANIM_DIRECTION_RIGHT, ANIM_TYPE_ATTACK, 0));
     graphLib.draw_weapon_icon(convert_menu_pos_to_weapon_n(ingame_menu_pos), ingame_menu_pos, true);
-    graphLib.draw_weapon_cursor(ingame_menu_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(ingame_menu_pos)), player_ref->get_number(), player_ref->get_max_hp());
+    graphLib.draw_weapon_cursor(ingame_menu_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(ingame_menu_pos)), player_ref->get_number());
 }
 
 bool class_config::execute_ingame_menu()
@@ -311,21 +328,22 @@ bool class_config::execute_ingame_menu()
 
 
     if (input.p1_input[BTN_START] == 1) {
-
         input.clean();
         input.waitTime(300);
-
+        // leaving menu, removes pause
+        if (ingame_menu_active == true) {
+            timer.unpause();
+        }
         ingame_menu_active = !ingame_menu_active;
 
         if (ingame_menu_active) {
-            gameControl.game_pause();
+            timer.pause();
             generate_weapons_matrix();
             draw_ingame_menu();
         } else {
-            // left menu, change player color/weapon and remove pause
+            // change player color/weapon
             if (ingame_menu_pos.y != 6) {
-                player_ref->set_weapon(convert_menu_pos_to_weapon_n(ingame_menu_pos), false);
-                gameControl.game_unpause();
+                player_ref->set_weapon(convert_menu_pos_to_weapon_n(ingame_menu_pos));
             } else {
                 // use item
                 use_tank(ingame_menu_pos.x);
@@ -350,7 +368,7 @@ bool class_config::execute_ingame_menu()
         } else if (input.p1_input[BTN_R] == 1) {
             if (gameControl.show_config(game_save.stages[gameControl.currentStage]) == true) { // player picked "leave stage" option
                 ingame_menu_active = false;
-                gameControl.game_unpause();
+                timer.unpause();
                 return true;
             }
             draw_ingame_menu();
@@ -358,16 +376,15 @@ bool class_config::execute_ingame_menu()
         if (old_pos.x != ingame_menu_pos.x || old_pos.y != ingame_menu_pos.y) {
             //std::cout << ">> old_pos.y: " << old_pos.y << ", ingame_menu_pos.y: " << ingame_menu_pos.y << std::endl;
             if (old_pos.y != 6) {
-                graphLib.draw_weapon_cursor(old_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(old_pos)), -1, player_ref->get_max_hp());
+                graphLib.draw_weapon_cursor(old_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(old_pos)), -1);
                 graphLib.draw_weapon_icon(convert_menu_pos_to_weapon_n(old_pos), old_pos, false);
             } else {
                 graphLib.erase_menu_item(old_pos.x);
             }
             if (ingame_menu_pos.y != 6) {
-                graphLib.draw_weapon_cursor(ingame_menu_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(ingame_menu_pos)), player_ref->get_number(), player_ref->get_max_hp());
+                graphLib.draw_weapon_cursor(ingame_menu_pos, player_ref->get_weapon_value(convert_menu_pos_to_weapon_n(ingame_menu_pos)), player_ref->get_number());
                 graphLib.draw_weapon_icon(convert_menu_pos_to_weapon_n(ingame_menu_pos), ingame_menu_pos, true);
-                player_ref->set_weapon(convert_menu_pos_to_weapon_n(ingame_menu_pos), false);
-                weapon_menu_show_player();
+                change_player_frame_color();
             } else {
                 graphLib.draw_menu_item(ingame_menu_pos.x);
             }
@@ -375,7 +392,6 @@ bool class_config::execute_ingame_menu()
         input.clean();
         input.waitTime(MENU_CHANGE_DELAY);
     }
-
     return ingame_menu_active;
 }
 
@@ -418,7 +434,7 @@ st_position class_config::convert_stage_n_to_menu_pos(short stage_n) const
 }
 
 
-Sint8 class_config::find_next_weapon(Uint8 current, Uint8 move) const
+int class_config::find_next_weapon(int current, int move) const
 {
     if (move == 1) {
         for (int i=current+1; i<WEAPON_COUNT; i++) { // from position to end
